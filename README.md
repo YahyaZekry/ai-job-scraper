@@ -1,7 +1,5 @@
 # AI Job Hunt Agent
 
-[![Support me on Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20this%20project-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/kurtdeaustria)
-
 An autonomous job-hunting pipeline. It reads your resume, searches the web for matching remote roles, scores each posting against your actual profile with Claude, then writes a tailored cover letter **and** a one-page PDF CV for every job worth applying to — all reviewable in a local web dashboard.
 
 Before you send anything, a second Claude call reviews the letter with fresh context and flags any claim it can't trace back to a line in your resume. On a real run it caught "four years" where the resume said 2021–present, and "available full-time" where the current role was listed as part-time.
@@ -149,13 +147,13 @@ test_pipeline.py  # pipeline unit tests (Claude/Firecrawl/Exa/typst/pdftotext mo
 test_server.py    # API tests
 ```
 
-## Support
+## Credits & license
 
-I built this while job hunting as a broke developer — it runs on a Claude Code subscription and Firecrawl's free tier precisely because I couldn't justify another bill. If it helped you land interviews (or saved you a few hours of job-board scrolling), consider buying me a coffee:
+MIT. Originally created by [Kurt De Austria](https://github.com/Kurt-Chan) as [ai-job-scraper](https://github.com/Kurt-Chan/ai-job-scraper) — the pipeline shape (search → scrape → score → write, prompts as files, Claude driven through the CLI) is his. Substantially extended since: per-job CV generation, the drafter-reviewer application flow, the application tracker, and the discovery/scrape rework.
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/kurtdeaustria)
+Both copyright notices are preserved in [`LICENSE`](LICENSE), as MIT requires.
 
-Stars, issues, and PRs are just as appreciated. ☕
+Stars, issues, and PRs appreciated. ☕
 
 ---
 
