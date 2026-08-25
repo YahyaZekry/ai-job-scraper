@@ -1,6 +1,6 @@
 # Routes & Server Actions
 
-> Part of ai-job-scraper-clean/.project-knowledge/ | Last updated: 2026-07-21
+> Part of job-hunter-agent/.project-knowledge/ | Last updated: 2026-07-21
 > Check here before adding a new route or action — no duplicates.
 
 | Route | Method | Auth Required | What It Does |

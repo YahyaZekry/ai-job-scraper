@@ -1,6 +1,6 @@
 # Project Structure
 
-> Part of ai-job-scraper-clean/.project-knowledge/ | Last updated: 2026-07-21
+> Part of job-hunter-agent/.project-knowledge/ | Last updated: 2026-07-21
 
 ## File Tree
 

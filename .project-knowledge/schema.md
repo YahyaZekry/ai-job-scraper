@@ -1,6 +1,6 @@
 # Schema
 
-> Part of ai-job-scraper-clean/.project-knowledge/ | Last updated: 2026-08-16
+> Part of job-hunter-agent/.project-knowledge/ | Last updated: 2026-08-16
 > No database — all state lives in gitignored JSON files under `output/`. This is a navigable summary of their shapes.
 
 ## `output/search_config.json`

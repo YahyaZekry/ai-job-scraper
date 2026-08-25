@@ -1,4 +1,6 @@
-# AI Job Hunt Agent
+# Job Hunter Agent
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support%20this%20project-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/YahyaZekry)
 
 An autonomous job-hunting pipeline. It reads your resume, searches the web for matching remote roles, scores each posting against your actual profile with Claude, then writes a tailored cover letter **and** a one-page PDF CV for every job worth applying to — all reviewable in a local web dashboard.
 
@@ -146,6 +148,12 @@ CLAUDE.md         # agent context (target roles, preferences, output contract)
 test_pipeline.py  # pipeline unit tests (Claude/Firecrawl/Exa/typst/pdftotext mocked)
 test_server.py    # API tests
 ```
+
+## Support
+
+Built while job hunting, and it runs on a Claude Code subscription plus Firecrawl's free tier for exactly that reason. If it saved you hours of job-board scrolling or helped you land an interview:
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/YahyaZekry)
 
 ## Credits & license
 

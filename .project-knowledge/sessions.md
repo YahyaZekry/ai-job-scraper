@@ -1,6 +1,6 @@
 # Session Log
 
-> Part of ai-job-scraper-clean/.project-knowledge/ | Last updated: 2026-08-16
+> Part of job-hunter-agent/.project-knowledge/ | Last updated: 2026-08-16
 > Append-only — never edit past entries.
 
 | Date | Summary |

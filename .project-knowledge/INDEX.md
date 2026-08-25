@@ -1,4 +1,4 @@
-# AI Job Hunt Agent — Knowledge Index
+# Job Hunter Agent — Knowledge Index
 
 > Last updated: 2026-08-16
 > Status: Active
