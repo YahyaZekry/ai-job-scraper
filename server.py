@@ -12,7 +12,7 @@ app = FastAPI()
 
 STATUS_FILE = Path("output/status.json")
 JOBS_FILE = Path("output/jobs.json")
-COVER_LETTERS_DIR = Path("output/cover_letters")
+APPLICATIONS_DIR = Path("output/applications")
 CVS_DIR = Path("output/cvs")
 
 run_lock = threading.Lock()
@@ -67,11 +67,13 @@ async def update_status(body: StatusUpdate):
 
 @app.get("/api/cover-letter")
 async def get_cover_letter(company: str = Query(...), title: str = Query(...)):
+    """The fact-checked letter for a job. Letters are only written on demand by
+    the apply stage, so a 404 here means it hasn't been run for this job yet."""
     from agent import _slug
     slug = f"{_slug(company)}__{_slug(title)}"
-    path = COVER_LETTERS_DIR / f"{slug}.md"
+    path = APPLICATIONS_DIR / slug / "cover_letter.md"
     if not path.exists():
-        raise HTTPException(status_code=404, detail="Cover letter not found")
+        raise HTTPException(status_code=404, detail="No letter written for this job yet")
     return {"content": path.read_text(encoding="utf-8")}
 
 

@@ -2,13 +2,13 @@
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support%20this%20project-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/YahyaZekry)
 
-Reads your resume, finds remote jobs worth applying to, and writes the application — a tailored cover letter and a one-page PDF CV per job.
+Reads your resume, finds remote jobs worth applying to, and writes the application: a one-page PDF CV per job, and a cover letter on demand.
 
-Then it checks its own work: a second Claude call reviews every letter with fresh context and flags anything it can't trace back to a line in your resume.
+Then it checks its own work. A second Claude reads each letter with fresh context and cuts anything it can't trace back to a line in your resume.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/dashboard-dark.png">
-  <img alt="The dashboard: scored job matches with per-job Apply, Letter, and CV actions" src="docs/dashboard-light.png">
+  <img alt="The dashboard: scored job matches with per-job write, letter, and CV actions" src="docs/dashboard-light.png">
 </picture>
 
 Works for **any profession** — developer, designer, virtual assistant, writer, accountant. Roles, queries, scoring, and copy all come from your `resume.md`; nothing about your field is hardcoded.
@@ -47,15 +47,14 @@ Drop your resume at `resume.md` (gitignored, never leaves your machine), then:
 | **1. Build queries** | Roles, skills, and your preferences → search queries, one per source. |
 | **2. Discover & scrape** | Firecrawl searches, then scrapes a batch of result pages into individual postings. |
 | **3. Score** | Every posting scored 0–100 against your profile: skills, seniority, remote signals, freshness, location, language, red flags. |
-| **4. Cover letters** | For each `apply` verdict, a letter built on that job's suggested angle. |
-| **5. CVs** | A Typst CV aimed at that posting, compiled to PDF and checked the way an ATS would read it. |
+| **4. CVs** | For each `apply` verdict, a Typst CV aimed at that posting, compiled to PDF and checked the way an ATS would read it. |
 
-Then per job, on demand: **Apply** → draft → review → revise.
+Cover letters are **not** written in bulk. Per job, on demand, **Write + fact-check** drafts one and has a second Claude verify it — see below.
 
 ## Features
 
-**Apply** streams three phases and shows the draft beside the revised version, with:
-- claims the reviewer couldn't find in your resume
+**Write + fact-check** drafts a cover letter, then hands it to a second Claude that never saw it being written. That one checks every claim against `resume.md` and cuts what it can't find. The modal shows both versions side by side, with:
+- claims cut for having no support in your resume
 - requirement coverage — `matched` / `bridged` / `gap` (gaps are fine; hiding them isn't)
 - any edits skipped because the reviewer's text didn't match the draft exactly
 
@@ -64,6 +63,8 @@ Everything is archived to `output/applications/<company>__<role>/` and tracked i
 **Find more jobs** — a search turns up far more pages than one run scrapes (46–168 in practice, 20 scraped). The rest are queued, not discarded. This scrapes the next batch: no repeated search, no page scraped twice, and copy already written is skipped. Cheaper than re-running. No single site takes more than 3 pages per batch, so one careers page can't eat the budget.
 
 **Preferences** — chips for employment type, pay/currency, and location, folded into both the queries *and* the scoring. "Worldwide Remote" and a specific country are mutually exclusive so they can't widen into "worldwide **or** Egypt". Note that typing a country searches *for* it — there's no exclude.
+
+**Plain English** — the letter prompt bans em dashes, stock phrases ("passionate about", "proven track record"), and inflated vocabulary; the reviewer flags any that slip through, and a regex strips dashes as a last resort. Letters should read like a person emailing a stranger about a job.
 
 **One-page CVs** — overflow triggers one regeneration with instructions to cut the least relevant material. `templates/cv.typ` is the styling reference; edit it and preview with `typst compile templates/cv.typ`.
 
@@ -76,9 +77,8 @@ Everything lands in `output/` (gitignored):
 | `jobs.json` | Scored jobs |
 | `raw_jobs.json` | Everything scraped |
 | `page_queue.json` | Discovered pages + which are already scraped |
-| `cover_letters/` | One `.md` per job |
 | `cvs/` | Tailored `.typ` sources + compiled `.pdf`s |
-| `applications/<slug>/` | Archived posting, draft, review, final letter |
+| `applications/<slug>/` | Archived posting, first draft, review, final letter |
 | `applications.csv` | The tracker |
 
 ## Configuration

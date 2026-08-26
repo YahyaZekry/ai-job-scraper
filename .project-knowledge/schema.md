@@ -84,9 +84,9 @@ Simple map, written/read by `server.py` (`_read_status` / `_write_status`).
 
 Entries are removed (not set to `"none"`) when status is cleared.
 
-## `output/cover_letters/*.md`
+## ~~`output/cover_letters/*.md`~~ (removed 2026-08-26)
 
-One plain-text file per "apply"-verdict job, named `{slug(company)}__{slug(title)}.md` (see `_slug()` in `agent.py`). No frontmatter — raw cover letter text only.
+Pipeline step 4 used to bulk-write an unreviewed letter per job. Removed because it produced a *second, unrelated* letter for every job the apply stage also covered, and the UI showed the unreviewed one by default. Letters now live only in `output/applications/<slug>/cover_letter.md`. Old files from previous runs are harmless leftovers.
 
 ## `output/cvs/*.typ` + `*.pdf`
 

@@ -70,9 +70,10 @@ def test_post_status_rejects_invalid_value(client):
 
 
 def test_cover_letter_found(client, tmp_path):
-    (tmp_path / "output" / "cover_letters").mkdir()
     slug = "tech-holding__frontend-engineer-contract-remote"
-    (tmp_path / "output" / "cover_letters" / f"{slug}.md").write_text("Dear hiring manager,")
+    d = tmp_path / "output" / "applications" / slug
+    d.mkdir(parents=True)
+    (d / "cover_letter.md").write_text("Dear hiring manager,")
     res = client.get("/api/cover-letter?company=Tech+Holding&title=Frontend+Engineer+%28Contract%29+-+Remote")
     assert res.status_code == 200
     assert "Dear hiring manager" in res.json()["content"]

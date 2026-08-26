@@ -210,12 +210,7 @@
         <li aria-hidden="true" class="text-line">—</li>
         <li class="flex items-center gap-2">
           <span id="s4-icon" class="text-faint">○</span>
-          <span id="s4-label" class="text-sm text-faint">Letters</span>
-        </li>
-        <li aria-hidden="true" class="text-line">—</li>
-        <li class="flex items-center gap-2">
-          <span id="s5-icon" class="text-faint">○</span>
-          <span id="s5-label" class="text-sm text-faint">CVs</span>
+          <span id="s4-label" class="text-sm text-faint">CVs</span>
         </li>
       </ol>
       <canvas id="game-canvas" height="140" class="w-full rounded-xl bg-raised border border-line"></canvas>
@@ -654,7 +649,7 @@
       prog.classList.remove('hidden');
       summary.classList.add('hidden');
       errBan.classList.add('hidden');
-      for (let i = 1; i <= 5; i++) setStep(i, 'pending');
+      for (let i = 1; i <= 4; i++) setStep(i, 'pending');
       startGame();
 
       const params = new URLSearchParams();
@@ -675,7 +670,7 @@
         }
         if (ev.step === 'error') {
           es.close(); reset(btn, prog);
-          for (let i = 1; i <= 5; i++) {
+          for (let i = 1; i <= 4; i++) {
             if (document.getElementById(`s${i}-icon`).textContent === '↻') setStep(i, 'error');
           }
           showError(`Pipeline error: ${ev.message}`);
@@ -797,7 +792,7 @@
             Write + fact-check
           </button>
           <button data-act="letter" data-q="${esc(q)}"
-            title="Read the cover letter written for this job"
+            title="Read the fact-checked letter, once Write + fact-check has been run"
             class="text-sm border border-line text-muted hover:text-ink hover:bg-raised px-3 h-8 rounded-lg">
             Cover letter
           </button>
@@ -859,7 +854,7 @@
         const res = await fetch(`/api/cover-letter?${query}`);
         content.textContent = res.ok
           ? (await res.json()).content
-          : 'No cover letter generated for this job yet.';
+          : 'No letter yet — use “Write + fact-check” on this job first.';
       } catch {
         content.textContent = 'Failed to load cover letter.';
       }

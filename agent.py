@@ -436,25 +436,6 @@ def analyze_jobs(preferences: str = "") -> list[dict]:
 def _slug(text: str, max_len: int = 40) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:max_len]
 
-def generate_cover_letters(jobs: list[dict]):
-    out_dir = Path("output/cover_letters")
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    for job in jobs:
-        company = job.get("company") or "unknown"
-        title = job.get("title") or "role"
-        slug = f"{_slug(company)}__{_slug(title)}"
-        out_path = out_dir / f"{slug}.md"
-        if out_path.exists():
-            continue  # already written by an earlier run — don't pay for it twice
-
-        print(f"  Writing cover letter: {company} — {title[:50]}...")
-        try:
-            letter = run_claude("prompts/cover_letter.md", context=json.dumps(job, indent=2))
-            out_path.write_text(letter, encoding="utf-8")
-        except Exception as e:
-            print(f"  Failed for {slug}: {e}")
-
 # ── CVs ───────────────────────────────────────────────────
 def _compile_cv(typ_path: Path) -> Path:
     """Compile a Typst CV to PDF next to its source. Raises RuntimeError if
@@ -703,6 +684,10 @@ def apply_to_job(job: dict, on_progress=None) -> dict:
 
     emit("Revising")
     revised, skipped = _apply_edits(draft, review.get("edits") or [])
+    # The prompts ban em/en dashes, but a model that ignores that shouldn't put
+    # one in a letter the user sends. Replacing with a comma keeps the sentence
+    # readable without guessing at where to split it.
+    revised = re.sub(r"\s*[—–]\s*", ", ", revised)
     (out_dir / "cover_letter.md").write_text(revised, encoding="utf-8")
 
     cv_pdf = Path("output/cvs") / f"{slug}.pdf"
@@ -718,7 +703,7 @@ def apply_to_job(job: dict, on_progress=None) -> dict:
 # ── pipeline orchestrator ──────────────────────────────────
 def run_pipeline(on_progress=None, resume_info: dict | None = None, preferences: str = "",
                  find_more: bool = False) -> dict:
-    """Run the full 5-step pipeline.
+    """Run the full 4-step pipeline.
 
     find_more=True skips the search entirely and scrapes the next batch of
     pages the last search already found (see `scrape_more()`), merging the new
@@ -733,7 +718,7 @@ def run_pipeline(on_progress=None, resume_info: dict | None = None, preferences:
     employment type) folded into both the search queries and the scoring.
 
     Calls on_progress(step, label, status) at each stage where:
-      step   — int 1-5
+      step   — int 1-4
       label  — human-readable step name
       status — "running" or "done"
 
@@ -778,22 +763,17 @@ def run_pipeline(on_progress=None, resume_info: dict | None = None, preferences:
     all_jobs = analyze_jobs(preferences)
     emit(3, "Analyzing & scoring", "done")
 
-    emit(4, "Generating cover letters", "running")
     good_jobs = [j for j in all_jobs if j.get("score", 0) >= THRESHOLD]
     # analyze.md's output shape drops `description`, so put the posting's own
-    # text back before anything writes copy that should be tailored to it.
+    # text back before the CV is tailored to it.
     apply_jobs = [
         {**j, "description": j.get("description") or _scraped_description(j.get("url", ""))}
         for j in good_jobs if j.get("verdict") == "apply"
     ]
-    if apply_jobs:
-        generate_cover_letters(apply_jobs)
-    emit(4, "Generating cover letters", "done")
-
-    emit(5, "Generating CVs", "running")
+    emit(4, "Generating CVs", "running")
     if apply_jobs:
         generate_cvs(apply_jobs)
-    emit(5, "Generating CVs", "done")
+    emit(4, "Generating CVs", "done")
 
     return {"total": len(all_jobs), "above_threshold": len(good_jobs)}
 

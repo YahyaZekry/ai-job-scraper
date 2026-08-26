@@ -77,7 +77,6 @@ def test_run_pipeline_emits_all_step_events(tmp_path, monkeypatch):
          patch.object(agent, "build_search_config", return_value=mock_config), \
          patch.object(agent, "scrape_jobs", return_value=mock_raw_jobs), \
          patch.object(agent, "analyze_jobs", return_value=mock_analyzed), \
-         patch.object(agent, "generate_cover_letters"), \
          patch.object(agent, "generate_cvs"):
         result = agent.run_pipeline(on_progress=lambda s, l, st: events.append((s, st)))
 
@@ -90,8 +89,6 @@ def test_run_pipeline_emits_all_step_events(tmp_path, monkeypatch):
     assert (3, "done") in step_statuses
     assert (4, "running") in step_statuses
     assert (4, "done") in step_statuses
-    assert (5, "running") in step_statuses
-    assert (5, "done") in step_statuses
     assert result == {"total": 1, "above_threshold": 1}
 
 
@@ -121,7 +118,6 @@ def test_run_pipeline_works_without_callback(tmp_path, monkeypatch):
          patch.object(agent, "build_search_config", return_value=mock_config), \
          patch.object(agent, "scrape_jobs", return_value=mock_raw_jobs), \
          patch.object(agent, "analyze_jobs", return_value=mock_analyzed), \
-         patch.object(agent, "generate_cover_letters"), \
          patch.object(agent, "generate_cvs"):
         result = agent.run_pipeline()
 
@@ -206,7 +202,6 @@ def test_run_pipeline_uses_given_resume_info_and_skips_analyze_resume(tmp_path, 
          patch.object(agent, "build_search_config", side_effect=fake_build_search_config), \
          patch.object(agent, "scrape_jobs", return_value=mock_raw_jobs), \
          patch.object(agent, "analyze_jobs", return_value=mock_analyzed), \
-         patch.object(agent, "generate_cover_letters"), \
          patch.object(agent, "generate_cvs"):
         agent.run_pipeline(resume_info=resume_info, preferences="Egypt, USD, part-time")
 
@@ -724,11 +719,9 @@ def test_run_pipeline_restores_descriptions_before_writing_copy(tmp_path, monkey
          patch.object(agent, "build_search_config", return_value={"search_queries": ["q"]}), \
          patch.object(agent, "scrape_jobs", return_value=scraped), \
          patch.object(agent, "analyze_jobs", return_value=analyzed), \
-         patch.object(agent, "generate_cover_letters", side_effect=lambda jobs: seen.update(cl=jobs)), \
          patch.object(agent, "generate_cvs", side_effect=lambda jobs: seen.update(cv=jobs)):
         agent.run_pipeline()
 
-    assert seen["cl"][0]["description"] == "Airtable required."
     assert seen["cv"][0]["description"] == "Airtable required."
 
 
@@ -833,26 +826,13 @@ def test_find_more_run_merges_new_postings_and_skips_the_search(tmp_path, monkey
          patch.object(agent, "scrape_jobs") as search_scrape, \
          patch.object(agent, "scrape_more", return_value=found), \
          patch.object(agent, "analyze_jobs", return_value=[]), \
-         patch.object(agent, "generate_cover_letters"), patch.object(agent, "generate_cvs"):
+         patch.object(agent, "generate_cvs"):
         agent.run_pipeline(find_more=True)
 
     build.assert_not_called()
     search_scrape.assert_not_called()
     merged = json.loads((tmp_path / "output" / "raw_jobs.json").read_text())
     assert [j["url"] for j in merged] == ["https://x/1", "https://x/2"]
-
-
-def test_generate_cover_letters_skips_ones_already_written(tmp_path, monkeypatch):
-    import agent
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "output" / "cover_letters").mkdir(parents=True)
-    (tmp_path / "output" / "cover_letters" / "co__dev.md").write_text("already here")
-
-    with patch.object(agent, "run_claude") as claude:
-        agent.generate_cover_letters([{"company": "Co", "title": "Dev"}])
-
-    claude.assert_not_called()
-    assert (tmp_path / "output" / "cover_letters" / "co__dev.md").read_text() == "already here"
 
 
 def test_generate_cvs_skips_ones_already_compiled(tmp_path, monkeypatch):
@@ -865,3 +845,18 @@ def test_generate_cvs_skips_ones_already_compiled(tmp_path, monkeypatch):
         agent.generate_cvs([{"company": "Co", "title": "Dev"}])
 
     claude.assert_not_called()
+
+
+def test_apply_to_job_strips_dashes_the_model_left_behind(tmp_path, monkeypatch):
+    import agent
+    monkeypatch.chdir(tmp_path)
+    draft = "I build agents — mostly in Python — and I ship them."
+
+    with patch.object(agent, "run_claude", return_value=draft), \
+         patch.object(agent, "run_claude_json", return_value={"edits": []}):
+        result = agent.apply_to_job({"company": "Co", "title": "Dev", "url": "u"})
+
+    assert "—" not in result["revised"]
+    assert result["revised"] == "I build agents, mostly in Python, and I ship them."
+    # the draft is kept verbatim so the modal can show what was changed
+    assert "—" in result["draft"]
