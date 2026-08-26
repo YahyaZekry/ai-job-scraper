@@ -67,14 +67,22 @@ async def update_status(body: StatusUpdate):
 
 @app.get("/api/cover-letter")
 async def get_cover_letter(company: str = Query(...), title: str = Query(...)):
-    """The fact-checked letter for a job. Letters are only written on demand by
-    the apply stage, so a 404 here means it hasn't been run for this job yet."""
+    """A job's letter, plus the first draft and the review that produced it, so
+    the UI can show what changed without re-running anything. 404 means no
+    letter has been written for this job yet."""
     from agent import _slug
-    slug = f"{_slug(company)}__{_slug(title)}"
-    path = APPLICATIONS_DIR / slug / "cover_letter.md"
-    if not path.exists():
+    folder = APPLICATIONS_DIR / f"{_slug(company)}__{_slug(title)}"
+    letter = folder / "cover_letter.md"
+    if not letter.exists():
         raise HTTPException(status_code=404, detail="No letter written for this job yet")
-    return {"content": path.read_text(encoding="utf-8")}
+
+    draft = folder / "cover_letter_draft.md"
+    review = folder / "review.json"
+    return {
+        "content": letter.read_text(encoding="utf-8"),
+        "draft": draft.read_text(encoding="utf-8") if draft.exists() else "",
+        "review": json.loads(review.read_text(encoding="utf-8")) if review.exists() else {},
+    }
 
 
 @app.get("/api/cv")

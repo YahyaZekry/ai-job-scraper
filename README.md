@@ -49,14 +49,11 @@ Drop your resume at `resume.md` (gitignored, never leaves your machine), then:
 | **3. Score** | Every posting scored 0–100 against your profile: skills, seniority, remote signals, freshness, location, language, red flags. |
 | **4. CVs** | For each `apply` verdict, a Typst CV aimed at that posting, compiled to PDF and checked the way an ATS would read it. |
 
-Cover letters are **not** written in bulk. Per job, on demand, **Write + fact-check** drafts one and has a second Claude verify it — see below.
+Cover letters aren't written in bulk. You ask for one job at a time, and it gets fact-checked before you see it — see below.
 
 ## Features
 
-**Write + fact-check** drafts a cover letter, then hands it to a second Claude that never saw it being written. That one checks every claim against `resume.md` and cuts what it can't find. The modal shows both versions side by side, with:
-- claims cut for having no support in your resume
-- requirement coverage — `matched` / `bridged` / `gap` (gaps are fine; hiding them isn't)
-- any edits skipped because the reviewer's text didn't match the draft exactly
+**Cover letter** — one button per job. If a letter exists it opens; if not, it offers to write one. Claude drafts it from your resume, then a second Claude that never saw it being written checks every claim against `resume.md` and removes what it can't find. You get the finished letter, a Copy button, and a collapsed "what was checked" section holding the claims that were cut, what the job asked for versus what you actually have, and the original draft.
 
 Everything is archived to `output/applications/<company>__<role>/` and tracked in `output/applications.csv`.
 

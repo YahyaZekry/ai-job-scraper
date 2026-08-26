@@ -260,56 +260,64 @@
       <div id="jobs-list"></div>
     </main>
 
-    <!-- Cover Letter Modal -->
-    <div id="cl-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center
-       justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="cl-title"
-       onclick="if(event.target===this)closeCL()">
-      <div class="bg-surface border border-line rounded-2xl shadow-pop w-full max-w-2xl max-h-[80vh] flex flex-col">
-        <div class="flex justify-between items-center px-5 py-4 border-b border-line shrink-0">
-          <h2 id="cl-title" class="font-semibold">Cover letter</h2>
-          <button onclick="closeCL()" aria-label="Close"
-            class="w-8 h-8 grid place-items-center rounded-lg text-muted hover:text-ink hover:bg-raised transition">&times;</button>
-        </div>
-        <div id="cl-content" class="font-read text-[15px] leading-[1.7] text-ink
-                                    overflow-y-auto flex-1 px-6 py-5 whitespace-pre-wrap"></div>
-      </div>
-    </div>
-
-    <!-- Apply Modal -->
-    <div id="apply-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center
-       justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="apply-title"
-       onclick="if(event.target===this)closeApply()">
-      <div class="bg-surface border border-line rounded-2xl shadow-pop w-full max-w-5xl max-h-[86vh] flex flex-col">
-        <div class="flex justify-between items-start px-5 py-4 border-b border-line shrink-0">
+    <!-- Cover letter -->
+    <div id="letter-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center
+       justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="letter-title"
+       onclick="if(event.target===this)closeLetter()">
+      <div class="bg-surface border border-line rounded-2xl shadow-pop w-full max-w-3xl max-h-[86vh] flex flex-col">
+        <div class="flex justify-between items-start px-6 py-4 border-b border-line shrink-0">
           <div>
-            <h2 id="apply-title" class="font-semibold">Cover letter + fact-check</h2>
-            <p class="text-sm text-muted mt-1 max-w-2xl">
-              Claude writes a letter from your resume, then a <strong>second</strong> Claude — which
-              never saw the first one being written — checks every claim in it against
-              <code class="text-xs">resume.md</code> and cuts anything it can't find there.
-            </p>
-            <p id="apply-status" class="text-sm text-faint mt-1"></p>
+            <h2 id="letter-title" class="font-semibold">Cover letter</h2>
+            <p id="letter-sub" class="text-sm text-faint mt-0.5"></p>
           </div>
-          <button onclick="closeApply()" aria-label="Close"
+          <button onclick="closeLetter()" aria-label="Close"
             class="w-8 h-8 grid place-items-center rounded-lg text-muted hover:text-ink hover:bg-raised transition">&times;</button>
         </div>
-        <div class="overflow-y-auto flex-1 px-5 py-5">
-          <div id="apply-panes" class="hidden grid md:grid-cols-2 gap-5">
-            <div>
-              <h3 class="text-xs font-medium uppercase tracking-wider text-faint mb-1">1 · What Claude wrote</h3>
-              <p class="text-xs text-faint mb-2">Before any checking.</p>
-              <div id="apply-draft" class="font-read text-[15px] leading-[1.7] text-muted
-                                          bg-raised rounded-xl p-4 whitespace-pre-wrap"></div>
-            </div>
-            <div>
-              <h3 class="text-xs font-medium uppercase tracking-wider text-apply mb-1">2 · After the fact-check</h3>
-              <p class="text-xs text-faint mb-2">This is the one to send. Saved to <code>output/applications/</code>.</p>
-              <div id="apply-revised" class="font-read text-[15px] leading-[1.7] text-ink
-                                            bg-raised rounded-xl p-4 whitespace-pre-wrap
-                                            ring-1 ring-apply/25"></div>
-            </div>
+
+        <div class="overflow-y-auto flex-1 px-6 py-5">
+          <!-- nothing written yet -->
+          <div id="letter-empty" class="hidden text-center py-8">
+            <p class="text-ink">No cover letter for this job yet.</p>
+            <p class="text-sm text-muted mt-2 max-w-md mx-auto">
+              Claude will write one from your resume. A second Claude then reads it,
+              checks every claim against <code class="text-xs">resume.md</code>, and removes
+              anything it can't find there.
+            </p>
+            <button id="letter-write-btn" onclick="writeLetter()"
+              class="mt-5 bg-accent text-accent-ink hover:opacity-90 font-medium px-4 h-9 rounded-lg transition text-sm">
+              Write it
+            </button>
+            <p class="text-xs text-faint mt-3">Takes about a minute.</p>
           </div>
-          <div id="apply-review" class="mt-5 space-y-3"></div>
+
+          <!-- the letter -->
+          <div id="letter-body" class="hidden">
+            <div id="letter-text" class="font-read text-[15px] leading-[1.75] text-ink whitespace-pre-wrap"></div>
+
+            <div class="flex flex-wrap gap-2 mt-6 pt-5 border-t border-line">
+              <button onclick="copyLetter()" id="copy-btn"
+                class="text-sm border border-line text-muted hover:text-ink hover:bg-raised px-3 h-8 rounded-lg transition">
+                Copy
+              </button>
+              <button onclick="writeLetter()"
+                title="Throw this away and write a new one"
+                class="text-sm border border-line text-muted hover:text-ink hover:bg-raised px-3 h-8 rounded-lg transition">
+                Write a new one
+              </button>
+            </div>
+
+            <details id="letter-checks" class="mt-5 group">
+              <summary class="text-sm text-muted cursor-pointer select-none hover:text-ink flex items-center gap-1.5">
+                <span class="chev">›</span><span id="checks-summary">What was checked</span>
+              </summary>
+              <div id="letter-review" class="mt-4 space-y-3"></div>
+              <div class="mt-4">
+                <h3 class="text-xs font-medium uppercase tracking-wider text-faint mb-2">The first draft, before checking</h3>
+                <div id="letter-draft" class="font-read text-[15px] leading-[1.7] text-muted
+                                              bg-raised rounded-xl p-4 whitespace-pre-wrap"></div>
+              </div>
+            </details>
+          </div>
         </div>
       </div>
     </div>
@@ -786,14 +794,9 @@
           </details>` : ''}
 
         <div class="flex flex-wrap items-center gap-2 pt-4 mt-auto">
-          <button data-act="apply" data-url="${esc(job.url ?? '')}"
-            title="Write a cover letter, then have a second Claude fact-check it against your resume"
+          <button data-act="letter" data-q="${esc(q)}" data-url="${esc(job.url ?? '')}"
+            title="See the cover letter for this job, or have one written"
             class="text-sm bg-accent text-accent-ink hover:opacity-90 font-medium px-3 h-8 rounded-lg">
-            Write + fact-check
-          </button>
-          <button data-act="letter" data-q="${esc(q)}"
-            title="Read the fact-checked letter, once Write + fact-check has been run"
-            class="text-sm border border-line text-muted hover:text-ink hover:bg-raised px-3 h-8 rounded-lg">
             Cover letter
           </button>
           <a href="/api/cv?${q}" target="_blank" rel="noopener noreferrer"
@@ -822,8 +825,7 @@
       const el = e.target.closest('[data-act]');
       if (!el) return;
       const act = el.dataset.act;
-      if (act === 'apply') openApply(el.dataset.url);
-      else if (act === 'letter') openCL(el.dataset.q);
+      if (act === 'letter') openLetter(el.dataset.q, el.dataset.url);
       else if (act === 'status') toggleStatus(el.dataset.url, el.dataset.status);
     });
 
@@ -844,24 +846,132 @@
       }
     }
 
-    /* ── cover letter modal ──────────────────────────────── */
-    async function openCL(query) {
-      const modal = document.getElementById('cl-modal');
-      const content = document.getElementById('cl-content');
-      content.textContent = 'Loading…';
-      modal.classList.remove('hidden');
+    /* ── cover letter ─────────────────────────────────────
+       One modal, three states: nothing written yet, writing, or the letter
+       itself. The old split — a "Cover letter" button to read and a separate
+       one to generate — meant two buttons for one thing, and neither name said
+       what it produced. */
+    let letterJob = null;
+
+    function closeLetter() {
+      document.getElementById('letter-modal').classList.add('hidden');
+    }
+
+    function show(id, on) {
+      document.getElementById(id).classList.toggle('hidden', !on);
+    }
+
+    async function openLetter(query, url) {
+      letterJob = { query, url };
+      document.getElementById('letter-modal').classList.remove('hidden');
+      document.getElementById('letter-sub').textContent = 'Loading…';
+      show('letter-empty', false);
+      show('letter-body', false);
+
       try {
         const res = await fetch(`/api/cover-letter?${query}`);
-        content.textContent = res.ok
-          ? (await res.json()).content
-          : 'No letter yet — use “Write + fact-check” on this job first.';
+        if (res.status === 404) {
+          document.getElementById('letter-sub').textContent = '';
+          show('letter-empty', true);
+          return;
+        }
+        renderLetter(await res.json());
       } catch {
-        content.textContent = 'Failed to load cover letter.';
+        document.getElementById('letter-sub').textContent = 'Could not load it. Try again.';
       }
     }
 
-    function closeCL() {
-      document.getElementById('cl-modal').classList.add('hidden');
+    function renderLetter({ content, revised, draft, review }) {
+      const finalText = revised ?? content ?? '';
+      document.getElementById('letter-text').textContent = finalText;
+      document.getElementById('letter-draft').textContent = draft || '(not recorded)';
+
+      const cut = (review?.ungrounded_claims ?? []).length;
+      document.getElementById('letter-sub').textContent = cut
+        ? `Checked against your resume. ${cut} claim${cut === 1 ? '' : 's'} removed.`
+        : 'Checked against your resume. Nothing had to be removed.';
+      document.getElementById('checks-summary').textContent =
+        cut ? `What was checked, and what got cut (${cut})` : 'What was checked';
+
+      renderReview(review ?? {}, review?.skipped_edits);
+      show('letter-empty', false);
+      show('letter-body', true);
+    }
+
+    async function copyLetter() {
+      const btn = document.getElementById('copy-btn');
+      try {
+        await navigator.clipboard.writeText(document.getElementById('letter-text').textContent);
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+      } catch {
+        btn.textContent = 'Press Ctrl+C';
+      }
+    }
+
+    function writeLetter() {
+      if (!letterJob) return;
+      const sub = document.getElementById('letter-sub');
+      show('letter-empty', false);
+      show('letter-body', false);
+      sub.textContent = 'Writing it from your resume…';
+
+      const es = new EventSource(`/api/apply?url=${encodeURIComponent(letterJob.url)}`);
+      es.onmessage = ({ data }) => {
+        const ev = JSON.parse(data);
+        if (ev.step === 'error') {
+          es.close();
+          sub.textContent = `Failed: ${ev.message}`;
+          show('letter-empty', true);
+          return;
+        }
+        if (ev.step === 'complete') {
+          es.close();
+          renderLetter(ev);
+          return;
+        }
+        sub.textContent = {
+          Drafting: 'Writing it from your resume…',
+          Reviewing: 'Checking every claim against your resume…',
+          Revising: 'Removing what could not be verified…',
+        }[ev.step] ?? `${ev.step}…`;
+      };
+      es.onerror = () => { es.close(); sub.textContent = 'Connection lost.'; };
+    }
+
+    function renderReview(review, skipped) {
+      const box = document.getElementById('letter-review');
+      const ungrounded = review.ungrounded_claims ?? [];
+      const coverage = review.coverage ?? [];
+      const badge = { matched: 'text-apply', bridged: 'text-review', gap: 'text-danger' };
+      const word = { matched: 'you have it', bridged: 'close enough, said honestly', gap: 'you do not have it' };
+      box.innerHTML = `
+        ${ungrounded.length ? `
+          <div class="border border-danger/30 bg-danger/10 rounded-xl p-4">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-danger mb-2">
+              Removed, because your resume doesn't say it</h3>
+            <ul class="text-sm text-ink space-y-1.5 list-disc list-outside pl-4">
+              ${ungrounded.map(c => `<li>"${esc(c.claim ?? '')}" <span class="text-muted">${esc(c.why ?? '')}</span></li>`).join('')}
+            </ul>
+          </div>` : ''}
+        ${coverage.length ? `
+          <div class="border border-line bg-raised rounded-xl p-4">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-faint mb-2">What the job asked for</h3>
+            <ul class="text-sm text-ink space-y-1.5">
+              ${coverage.map(c => `<li><span class="${badge[c.status] ?? 'text-faint'} font-medium">
+                ${esc(word[c.status] ?? c.status ?? '')}</span> — ${esc(c.requirement ?? '')}
+                ${c.note ? `<span class="text-faint">(${esc(c.note)})</span>` : ''}</li>`).join('')}
+            </ul>
+          </div>` : ''}
+        ${skipped?.length ? `
+          <div class="border border-review/30 bg-review/10 rounded-xl p-4">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-review mb-2">
+              ${skipped.length} correction(s) couldn't be applied</h3>
+            <p class="text-xs text-muted mb-2">The wording didn't match the draft exactly, so it was left alone rather than guessed at.</p>
+            <ul class="text-sm text-ink space-y-1.5 list-disc list-outside pl-4">
+              ${skipped.map(x => `<li>${esc(x)}</li>`).join('')}
+            </ul>
+          </div>` : ''}`;
     }
 
     /* ── theme ───────────────────────────────────────────── */
@@ -886,87 +996,8 @@
        the × or a click on the backdrop. */
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
-      if (!document.getElementById('apply-modal').classList.contains('hidden')) closeApply();
-      else if (!document.getElementById('cl-modal').classList.contains('hidden')) closeCL();
+      if (!document.getElementById('letter-modal').classList.contains('hidden')) closeLetter();
     });
-
-    /* ── apply stage (draft → review → revise) ───────────── */
-    function closeApply() {
-      document.getElementById('apply-modal').classList.add('hidden');
-    }
-
-    function renderReview(review, skipped) {
-      const box = document.getElementById('apply-review');
-      const ungrounded = review.ungrounded_claims ?? [];
-      const coverage = review.coverage ?? [];
-      const badge = {
-        matched: 'text-apply', bridged: 'text-review', gap: 'text-danger'
-      };
-      box.innerHTML = `
-        ${ungrounded.length ? `
-          <div class="border border-danger/30 bg-danger/10 rounded-xl p-4">
-            <h3 class="text-xs font-medium uppercase tracking-wider text-danger mb-2">
-              Cut — no support in your resume (${ungrounded.length})</h3>
-            <ul class="text-sm text-ink space-y-1.5 list-disc list-outside pl-4">
-              ${ungrounded.map(c => `<li>${esc(c.claim ?? '')} — <span class="text-muted">${esc(c.why ?? '')}</span></li>`).join('')}
-            </ul>
-          </div>` : ''}
-        ${coverage.length ? `
-          <div class="border border-line bg-raised rounded-xl p-4">
-            <h3 class="text-xs font-medium uppercase tracking-wider text-faint mb-2">What the job asked for, and whether you have it</h3>
-            <ul class="text-sm text-ink space-y-1.5">
-              ${coverage.map(c => `<li><span class="${badge[c.status] ?? 'text-faint'} font-medium">
-                ${esc(c.status ?? '')}</span> — ${esc(c.requirement ?? '')}
-                ${c.note ? `<span class="text-faint">(${esc(c.note)})</span>` : ''}</li>`).join('')}
-            </ul>
-          </div>` : ''}
-        ${skipped?.length ? `
-          <div class="border border-review/30 bg-review/10 rounded-xl p-4">
-            <h3 class="text-xs font-medium uppercase tracking-wider text-review mb-2">
-              Could not apply ${skipped.length} correction(s)</h3>
-            <p class="text-xs text-muted mb-2">The reviewer's text didn't match the draft exactly, so it was left alone rather than guessed at.</p>
-            <ul class="text-sm text-ink space-y-1.5 list-disc list-outside pl-4">
-              ${skipped.map(s => `<li>${esc(s)}</li>`).join('')}
-            </ul>
-          </div>` : ''}`;
-    }
-
-    function openApply(url) {
-      const modal = document.getElementById('apply-modal');
-      const status = document.getElementById('apply-status');
-      const panes = document.getElementById('apply-panes');
-      panes.classList.add('hidden');
-      document.getElementById('apply-review').innerHTML = '';
-      status.className = 'text-sm text-faint mt-0.5';
-      status.textContent = 'Writing the letter…';
-      modal.classList.remove('hidden');
-
-      const es = new EventSource(`/api/apply?url=${encodeURIComponent(url)}`);
-      es.onmessage = ({ data }) => {
-        const ev = JSON.parse(data);
-        if (ev.step === 'error') {
-          es.close();
-          status.className = 'text-sm text-danger mt-0.5';
-          status.textContent = `Failed: ${ev.message}`;
-          return;
-        }
-        if (ev.step === 'complete') {
-          es.close();
-          status.textContent = 'Done. Compare the two — the differences are what could not be verified.';
-          document.getElementById('apply-draft').textContent = ev.draft;
-          document.getElementById('apply-revised').textContent = ev.revised;
-          panes.classList.remove('hidden');
-          renderReview(ev.review ?? {}, ev.skipped_edits);
-          return;
-        }
-        status.textContent = { Drafting: 'Writing the letter…', Reviewing: 'Fact-checking it against your resume…', Revising: 'Applying the corrections…' }[ev.step] ?? `${ev.step}…`;
-      };
-      es.onerror = () => {
-        es.close();
-        status.className = 'text-sm text-danger mt-0.5';
-        status.textContent = 'Connection lost.';
-      };
-    }
 
     /* ── init ────────────────────────────────────────────── */
     const saved = localStorage.getItem('lastRun');
