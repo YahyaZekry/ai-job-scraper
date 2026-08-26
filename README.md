@@ -6,7 +6,10 @@ Reads your resume, finds remote jobs worth applying to, and writes the applicati
 
 Then it checks its own work: a second Claude call reviews every letter with fresh context and flags anything it can't trace back to a line in your resume.
 
-![The dashboard](docs/dashboard.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/dashboard-dark.png">
+  <img alt="The dashboard: scored job matches with per-job Apply, Letter, and CV actions" src="docs/dashboard-light.png">
+</picture>
 
 Works for **any profession** — developer, designer, virtual assistant, writer, accountant. Roles, queries, scoring, and copy all come from your `resume.md`; nothing about your field is hardcoded.
 
