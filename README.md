@@ -63,7 +63,9 @@ Everything is archived to `output/applications/<company>__<role>/` and tracked i
 
 **Plain English** — the letter prompt bans em dashes, stock phrases ("passionate about", "proven track record"), and inflated vocabulary; the reviewer flags any that slip through, and a regex strips dashes as a last resort. Letters should read like a person emailing a stranger about a job.
 
-**One-page CVs** — overflow triggers one regeneration with instructions to cut the least relevant material. `templates/cv.typ` is the styling reference; edit it and preview with `typst compile templates/cv.typ`.
+**Tailored CVs** — every `apply` job gets its own CV, rebuilt from `resume.md` for that posting. Same facts, different shape: the experience and skills the posting asks for move to the front, the rest is trimmed. Two real examples from one resume — an AI-evaluation role led with *Agentic AI: multi-agent systems, tool orchestration, agent evaluation*, while a React Native role from the same run led with *Mobile & Web: React Native, Expo, iOS/Android* and pulled the mobile app's test coverage up into a bullet. Nothing is invented; tailoring is selection and ordering only.
+
+Overflow triggers one regeneration with instructions to cut the least relevant material. `templates/cv.typ` is the styling reference; edit it and preview with `typst compile templates/cv.typ`.
 
 ## Output
 

@@ -22,6 +22,8 @@ All five pipeline stages plus the apply stage have now run end to end on real sc
 
 ## Active TODOs
 
+- [ ] Nothing in the UI shows *what* was tailored in a CV. It opens as a PDF in a new tab with no before/after, so a user who knows their own resume can't tell selection and reordering happened at all — the first real reaction to the feature was "it printed my resume". A diff view, or a short "what changed for this job" note next to the button, would make the work visible the way the letter modal now does. *(added: 2026-08-26)*
+
 - [ ] LinkedIn still yields nothing usable — Firecrawl returns "Website Not Supported" and the Exa fallback then failed to parse on one of four attempts (`Expecting value: line 1 column 1`). Worth deciding whether to keep spending discovery slots on `linkedin.com/jobs` at all. *(found in the 2026-08-16 real run)*
 - [ ] Some scraped listing pages still yield thin descriptions (100 of 168 under 200 chars after the extract-prompt fix) — these are teaser cards on search/category pages, where the full text genuinely isn't on the page. Consider a second scrape pass on the individual posting URL for jobs that score near the threshold. *(added: 2026-08-16)*
 - [ ] `posted_date` comes back as free text ("11 months ago", "3 weeks ago", "2 years ago") and is passed to `analyze.md` as-is for the 30-day freshness rule. It works, but nothing normalizes or verifies it. *(added: 2026-08-16)*
