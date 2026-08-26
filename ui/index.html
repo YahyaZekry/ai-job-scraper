@@ -287,8 +287,13 @@
       <div class="bg-surface border border-line rounded-2xl shadow-pop w-full max-w-5xl max-h-[86vh] flex flex-col">
         <div class="flex justify-between items-start px-5 py-4 border-b border-line shrink-0">
           <div>
-            <h2 id="apply-title" class="font-semibold">Application draft</h2>
-            <p id="apply-status" class="text-sm text-faint mt-0.5"></p>
+            <h2 id="apply-title" class="font-semibold">Cover letter + fact-check</h2>
+            <p class="text-sm text-muted mt-1 max-w-2xl">
+              Claude writes a letter from your resume, then a <strong>second</strong> Claude — which
+              never saw the first one being written — checks every claim in it against
+              <code class="text-xs">resume.md</code> and cuts anything it can't find there.
+            </p>
+            <p id="apply-status" class="text-sm text-faint mt-1"></p>
           </div>
           <button onclick="closeApply()" aria-label="Close"
             class="w-8 h-8 grid place-items-center rounded-lg text-muted hover:text-ink hover:bg-raised transition">&times;</button>
@@ -296,12 +301,14 @@
         <div class="overflow-y-auto flex-1 px-5 py-5">
           <div id="apply-panes" class="hidden grid md:grid-cols-2 gap-5">
             <div>
-              <h3 class="text-xs font-medium uppercase tracking-wider text-faint mb-2">Initial draft</h3>
+              <h3 class="text-xs font-medium uppercase tracking-wider text-faint mb-1">1 · What Claude wrote</h3>
+              <p class="text-xs text-faint mb-2">Before any checking.</p>
               <div id="apply-draft" class="font-read text-[15px] leading-[1.7] text-muted
                                           bg-raised rounded-xl p-4 whitespace-pre-wrap"></div>
             </div>
             <div>
-              <h3 class="text-xs font-medium uppercase tracking-wider text-apply mb-2">After review</h3>
+              <h3 class="text-xs font-medium uppercase tracking-wider text-apply mb-1">2 · After the fact-check</h3>
+              <p class="text-xs text-faint mb-2">This is the one to send. Saved to <code>output/applications/</code>.</p>
               <div id="apply-revised" class="font-read text-[15px] leading-[1.7] text-ink
                                             bg-raised rounded-xl p-4 whitespace-pre-wrap
                                             ring-1 ring-apply/25"></div>
@@ -785,9 +792,9 @@
 
         <div class="flex flex-wrap items-center gap-2 pt-4 mt-auto">
           <button data-act="apply" data-url="${esc(job.url ?? '')}"
-            title="Draft a cover letter, then have a second Claude call review it"
+            title="Write a cover letter, then have a second Claude fact-check it against your resume"
             class="text-sm bg-accent text-accent-ink hover:opacity-90 font-medium px-3 h-8 rounded-lg">
-            Draft application
+            Write + fact-check
           </button>
           <button data-act="letter" data-q="${esc(q)}"
             title="Read the cover letter written for this job"
@@ -904,14 +911,14 @@
         ${ungrounded.length ? `
           <div class="border border-danger/30 bg-danger/10 rounded-xl p-4">
             <h3 class="text-xs font-medium uppercase tracking-wider text-danger mb-2">
-              Claims not found in your resume (${ungrounded.length})</h3>
+              Cut — no support in your resume (${ungrounded.length})</h3>
             <ul class="text-sm text-ink space-y-1.5 list-disc list-outside pl-4">
               ${ungrounded.map(c => `<li>${esc(c.claim ?? '')} — <span class="text-muted">${esc(c.why ?? '')}</span></li>`).join('')}
             </ul>
           </div>` : ''}
         ${coverage.length ? `
           <div class="border border-line bg-raised rounded-xl p-4">
-            <h3 class="text-xs font-medium uppercase tracking-wider text-faint mb-2">Requirement coverage</h3>
+            <h3 class="text-xs font-medium uppercase tracking-wider text-faint mb-2">What the job asked for, and whether you have it</h3>
             <ul class="text-sm text-ink space-y-1.5">
               ${coverage.map(c => `<li><span class="${badge[c.status] ?? 'text-faint'} font-medium">
                 ${esc(c.status ?? '')}</span> — ${esc(c.requirement ?? '')}
@@ -921,7 +928,7 @@
         ${skipped?.length ? `
           <div class="border border-review/30 bg-review/10 rounded-xl p-4">
             <h3 class="text-xs font-medium uppercase tracking-wider text-review mb-2">
-              Edits skipped (${skipped.length})</h3>
+              Could not apply ${skipped.length} correction(s)</h3>
             <p class="text-xs text-muted mb-2">The reviewer's text didn't match the draft exactly, so it was left alone rather than guessed at.</p>
             <ul class="text-sm text-ink space-y-1.5 list-disc list-outside pl-4">
               ${skipped.map(s => `<li>${esc(s)}</li>`).join('')}
@@ -936,7 +943,7 @@
       panes.classList.add('hidden');
       document.getElementById('apply-review').innerHTML = '';
       status.className = 'text-sm text-faint mt-0.5';
-      status.textContent = 'Starting…';
+      status.textContent = 'Writing the letter…';
       modal.classList.remove('hidden');
 
       const es = new EventSource(`/api/apply?url=${encodeURIComponent(url)}`);
@@ -950,14 +957,14 @@
         }
         if (ev.step === 'complete') {
           es.close();
-          status.textContent = 'Done — review the changes before you send anything.';
+          status.textContent = 'Done. Compare the two — the differences are what could not be verified.';
           document.getElementById('apply-draft').textContent = ev.draft;
           document.getElementById('apply-revised').textContent = ev.revised;
           panes.classList.remove('hidden');
           renderReview(ev.review ?? {}, ev.skipped_edits);
           return;
         }
-        status.textContent = `${ev.step}…`;
+        status.textContent = { Drafting: 'Writing the letter…', Reviewing: 'Fact-checking it against your resume…', Revising: 'Applying the corrections…' }[ev.step] ?? `${ev.step}…`;
       };
       es.onerror = () => {
         es.close();
