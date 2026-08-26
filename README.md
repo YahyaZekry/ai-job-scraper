@@ -2,26 +2,26 @@
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support%20this%20project-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/YahyaZekry)
 
-Reads your resume, finds remote jobs worth applying to, and writes the application: a one-page PDF CV per job, and a cover letter on demand.
+Reads your resume, finds remote jobs worth applying to, and writes the application for you. Each match gets a CV rebuilt for that specific posting, and a cover letter whenever you ask for one.
 
-Then it checks its own work. A second Claude reads each letter with fresh context and cuts anything it can't trace back to a line in your resume.
+Then it checks its own work. A second Claude reads every letter with fresh context and removes anything it cannot find in your resume.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/dashboard-dark.png">
-  <img alt="The dashboard: scored job matches with per-job write, letter, and CV actions" src="docs/dashboard-light.png">
+  <img alt="The dashboard, showing scored job matches with a cover letter and tailored CV button on each card" src="docs/dashboard-light.png">
 </picture>
 
-Works for **any profession** — developer, designer, virtual assistant, writer, accountant. Roles, queries, scoring, and copy all come from your `resume.md`; nothing about your field is hardcoded.
+Works for any profession. Developer, designer, virtual assistant, writer, accountant. Your roles, search queries, scoring and copy all come from your `resume.md`, and nothing about your field is hardcoded.
 
-## Why the review matters
+## Why the fact-check matters
 
-LLMs embellish. On real runs this one caught:
+Language models embellish. On real runs this one caught:
 
-- **"four years"** — the resume said 2021–present, which is five
-- **"available full-time"** — the current role was listed as part-time
-- **a tool claimed as a core skill** — it appeared in the resume's skills list with no project behind it
+- **"four years"** when the resume said 2021 to present, which is five
+- **"available full-time"** when the current role was listed as part-time
+- **a tool claimed as a core skill** that appeared in the skills list with no project behind it
 
-Each is the kind of thing that falls apart in an interview. The reviewer sees only the posting, your resume, and the draft — not its own reasoning for writing it — so it has no stake in defending the text.
+Every one of those falls apart in an interview. The checker only sees three things: the job posting, your resume, and the letter. It never saw the letter being written, so it has no reason to defend it.
 
 ## Quick start
 
@@ -30,61 +30,99 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp .env.example .env     # add FIRECRAWL_API_KEY
 ```
 
-Drop your resume at `resume.md` (gitignored, never leaves your machine), then:
+Put your resume at `resume.md`. It is gitignored and never leaves your machine. Then:
 
 ```bash
 .venv/bin/python server.py    # → http://127.0.0.1:8000
 ```
 
-**Needs:** Python 3.10+, the [`claude` CLI](https://claude.com/claude-code) authenticated, a [Firecrawl](https://firecrawl.dev) key.
-**Optional:** [`typst`](https://github.com/typst/typst) for CVs, `pdftotext` (poppler) for the ATS check, an [Exa](https://exa.ai) key for pages Firecrawl can't reach.
+**You need:** Python 3.10+, the [`claude` CLI](https://claude.com/claude-code) signed in, and a [Firecrawl](https://firecrawl.dev) key.
 
-## How it works
+**Optional:** [`typst`](https://github.com/typst/typst) for CVs, `pdftotext` from poppler for the ATS check, and an [Exa](https://exa.ai) key for pages Firecrawl cannot reach.
+
+## How a run works
 
 | Step | What happens |
 |------|--------------|
-| **0. Find roles** | Claude reads your resume → target roles + key skills. You pick which ones this run covers. |
-| **1. Build queries** | Roles, skills, and your preferences → search queries, one per source. |
-| **2. Discover & scrape** | Firecrawl searches, then scrapes a batch of result pages into individual postings. |
-| **3. Score** | Every posting scored 0–100 against your profile: skills, seniority, remote signals, freshness, location, language, red flags. |
-| **4. CVs** | For each `apply` verdict, a Typst CV aimed at that posting, compiled to PDF and checked the way an ATS would read it. |
+| **0. Find roles** | Claude reads your resume and suggests target roles and key skills. You pick which ones this run covers. |
+| **1. Build queries** | Your roles, skills and preferences become search queries, one per source. |
+| **2. Discover and scrape** | Firecrawl searches, then scrapes a batch of result pages into individual job postings. |
+| **3. Score** | Every posting is scored 0 to 100 against your profile: skills, seniority, remote signals, freshness, location, language and red flags. |
+| **4. CVs** | Every job scoring 70 or above gets its own CV, compiled to PDF and checked the way an ATS would read it. |
 
-Cover letters aren't written in bulk. You ask for one job at a time, and it gets fact-checked before you see it — see below.
+Cover letters are not written in bulk. You ask for one job at a time, and it gets fact-checked before you ever see it.
 
-## Features
+## What each button does
 
-**Cover letter** — one button per job. If a letter exists it opens; if not, it offers to write one. Claude drafts it from your resume, then a second Claude that never saw it being written checks every claim against `resume.md` and removes what it can't find. You get the finished letter, a Copy button, and a collapsed "what was checked" section holding the claims that were cut, what the job asked for versus what you actually have, and the original draft.
+### Cover letter
 
-Everything is archived to `output/applications/<company>__<role>/` and tracked in `output/applications.csv`.
+If a letter already exists for that job, it opens. If not, you get a short explanation and a **Write it** button.
 
-**Find more jobs** — a search turns up far more pages than one run scrapes (46–168 in practice, 20 scraped). The rest are queued, not discarded. This scrapes the next batch: no repeated search, no page scraped twice, and copy already written is skipped. Cheaper than re-running. No single site takes more than 3 pages per batch, so one careers page can't eat the budget.
+Claude drafts the letter from your resume. A second Claude then reads it, checks every claim against `resume.md`, and removes what it cannot find. You end up with the finished letter, a Copy button, and a collapsed section called "what was checked" holding:
 
-**Preferences** — chips for employment type, pay/currency, and location, folded into both the queries *and* the scoring. "Worldwide Remote" and a specific country are mutually exclusive so they can't widen into "worldwide **or** Egypt". Note that typing a country searches *for* it — there's no exclude.
+- the claims that were removed, and why
+- what the job asked for against what you actually have, marked as *you have it*, *close enough, said honestly*, or *you do not have it*
+- the original draft, so you can see exactly what changed
 
-**Plain English** — the letter prompt bans em dashes, stock phrases ("passionate about", "proven track record"), and inflated vocabulary; the reviewer flags any that slip through, and a regex strips dashes as a last resort. Letters should read like a person emailing a stranger about a job.
+Gaps are fine. The checker only objects when a letter hides one.
 
-**Tailored CVs** — every `apply` job gets its own CV, rebuilt from `resume.md` for that posting. Same facts, different shape: the experience and skills the posting asks for move to the front, the rest is trimmed. Two real examples from one resume — an AI-evaluation role led with *Agentic AI: multi-agent systems, tool orchestration, agent evaluation*, while a React Native role from the same run led with *Mobile & Web: React Native, Expo, iOS/Android* and pulled the mobile app's test coverage up into a bullet. Nothing is invented; tailoring is selection and ordering only.
+Everything is saved to `output/applications/<company>__<role>/` and tracked in `output/applications.csv`.
 
-Overflow triggers one regeneration with instructions to cut the least relevant material. `templates/cv.typ` is the styling reference; edit it and preview with `typst compile templates/cv.typ`.
+### Tailored CV
 
-## Output
+Every job scoring 70 or above gets its own CV, rebuilt from `resume.md` for that posting. Same facts, different shape. The experience and skills the posting asks for move to the front, and the rest is trimmed.
 
-Everything lands in `output/` (gitignored):
+From one real run on the same resume:
 
-| Path | Contents |
-|------|----------|
+| Job | The CV led with |
+|-----|-----------------|
+| AI evaluation role | Agentic AI: multi-agent systems, tool orchestration, agent evaluation |
+| React Native role | Mobile and Web: React Native, Expo, iOS/Android |
+
+Nothing is invented. Tailoring means choosing and ordering, never adding. If a CV runs onto a second page it is rewritten once, told to cut the least relevant material.
+
+`templates/cv.typ` controls the styling. Edit it and preview with `typst compile templates/cv.typ`.
+
+### Find more
+
+A search finds far more pages than one run scrapes. In practice 46 to 168 found, 20 scraped. The rest are not thrown away, they sit in a queue.
+
+This button scrapes the next batch. No repeated search, no page scraped twice, and any letter or CV already written is skipped. That makes a second look cheaper than starting over. No single site gets more than 3 pages per batch, so one careers page cannot eat the whole budget.
+
+### New search
+
+Starts over: new queries, fresh discovery, fresh scraping. This replaces the queue, so anything left over from the last search is discarded. Use **Find more** instead if you just want more results from the search you already paid for.
+
+## Preferences
+
+Before a search you can set employment type, pay and currency, and location. These feed into both the search queries and the scoring.
+
+"Worldwide Remote" and a specific country are mutually exclusive, so they cannot combine into "worldwide or Egypt" and quietly widen your search. Note that typing a country searches *for* that country. There is no way to exclude one.
+
+## How the writing sounds
+
+The letter prompt bans em dashes, stock phrases like "passionate about" and "proven track record", and inflated words like "leverage" and "seamlessly". Sentences are capped at around 25 words. The checker flags anything that slips through, and a final pass strips any dash that survives both.
+
+The goal is a letter that reads like a person emailing a stranger about a job.
+
+## Where things are saved
+
+Everything lands in `output/`, which is gitignored:
+
+| Path | What is in it |
+|------|---------------|
 | `jobs.json` | Scored jobs |
 | `raw_jobs.json` | Everything scraped |
-| `page_queue.json` | Discovered pages + which are already scraped |
-| `cvs/` | Tailored `.typ` sources + compiled `.pdf`s |
-| `applications/<slug>/` | Archived posting, first draft, review, final letter |
-| `applications.csv` | The tracker |
+| `page_queue.json` | Pages found, and which have been scraped |
+| `cvs/` | Tailored `.typ` sources and compiled `.pdf` files |
+| `applications/<slug>/` | The saved posting, first draft, review, and final letter |
+| `applications.csv` | The tracker: date, company, role, status, score, file paths |
 
 ## Configuration
 
-`config.json` sets where the agent searches — `job_boards` (one query each) and `reddit_groups` (grouped, with optional `extra_terms`). Defaults are globally remote-first with no region-specific boards.
+`config.json` sets where the agent searches. `job_boards` gets one query each, and `reddit_groups` are searched as groups with optional extra terms. The defaults are remote-first worldwide with no region-specific boards.
 
-If your field has dedicated boards, add them. Note that `job_boards` are queried every run regardless of your location preference, so a region-tied board keeps surfacing that region no matter what you type.
+Add your own if your field has dedicated boards. One thing to know: `job_boards` are searched every run no matter what location you set, so a board tied to one region keeps surfacing that region regardless.
 
 ## Development
 
@@ -94,20 +132,21 @@ If your field has dedicated boards, add them. Note that `job_boards` are queried
 ```
 
 ```
-agent.py          # the whole pipeline + the apply stage
-server.py         # FastAPI, SSE for progress
+agent.py          # the whole pipeline plus the letter flow
+server.py         # FastAPI, server-sent events for progress
 ui/index.html     # single-file dashboard, no build step
 prompts/          # one Claude prompt per step
 templates/cv.typ  # CV layout
 ```
 
-`.project-knowledge/` holds the living docs — architecture, schema, decisions, and a roadmap of known limits.
+`.project-knowledge/` holds the living docs: architecture, data shapes, past decisions and a roadmap of known limits.
 
 ## Known limits
 
-- Listing pages often yield teaser-length descriptions; the full text isn't on the page to scrape
-- LinkedIn returns nothing usable through Firecrawl or Exa
-- `posted_date` arrives as free text ("11 months ago") and feeds the freshness rule unnormalized
+- Listing pages often give short teaser descriptions, because the full text is not on the page to scrape
+- LinkedIn returns nothing usable through either Firecrawl or Exa
+- `posted_date` arrives as free text like "11 months ago" and feeds the freshness rule without being normalised
+- Nothing in the UI shows what was tailored in a CV, so the work stays invisible unless you compare two of them
 
 ## Support
 
@@ -115,10 +154,21 @@ Built while job hunting, and it runs on a Claude Code subscription plus Firecraw
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/YahyaZekry)
 
-## Credits & license
+## Credits and license
 
-MIT. Originally created by [Kurt De Austria](https://github.com/Kurt-Chan) as [ai-job-scraper](https://github.com/Kurt-Chan/ai-job-scraper) — the pipeline shape is his. Substantially extended since: CV generation, the drafter-reviewer flow, the application tracker, and the discovery/scrape rework.
+MIT. Originally created by [Kurt De Austria](https://github.com/Kurt-Chan) as [ai-job-scraper](https://github.com/Kurt-Chan/ai-job-scraper). The pipeline shape is his. Substantially extended since then with CV generation, the fact-checked letter flow, the application tracker, and the rework of how discovery and scraping relate.
 
-Both copyright notices are preserved in [`LICENSE`](LICENSE), as MIT requires.
+Both copyright notices are kept in [`LICENSE`](LICENSE), as MIT requires.
 
-Stars, issues, and PRs appreciated. ☕
+Stars, issues and pull requests are all appreciated.
+
+---
+
+<details>
+<summary>🧠 AI Context</summary>
+
+This project uses the [project-knowledge](https://github.com/YahyaZekry/project-knowledge-skill) skill to maintain a `.project-knowledge/` folder, a living, AI-readable map of the codebase. Every AI session loads only the files relevant to the current task instead of scanning from scratch.
+
+Built by [Yahya Zekry](https://github.com/YahyaZekry/project-knowledge-skill).
+
+</details>
