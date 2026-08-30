@@ -1,10 +1,10 @@
-Read resume.md. You are reviewing a cover letter someone else drafted for the job below. You did not write it and have no stake in it — your job is to catch what's wrong with it.
+You are reviewing a cover letter someone else drafted for the job below. You did not write it and have no stake in it — your job is to catch what's wrong with it.
 
-The job JSON and the draft follow at the end of this prompt.
+The job JSON, the candidate's resume under ---RESUME---, and the draft under ---DRAFT--- all follow at the end of this prompt.
 
 Check four things:
 
-1. **Grounding.** Take every factual claim the letter makes — employer, title, tool, metric, duration, outcome — and find it in resume.md. A claim that isn't in the resume is ungrounded, even if it sounds plausible or is a reasonable inference. Inflated numbers, invented job titles, and "led" where the resume says "contributed to" all count as ungrounded.
+1. **Grounding.** Take every factual claim the letter makes — employer, title, tool, metric, duration, outcome — and find it in the resume. A claim that isn't in the resume is ungrounded, even if it sounds plausible or is a reasonable inference. Inflated numbers, invented job titles, and "led" where the resume says "contributed to" all count as ungrounded.
 2. **Requirement coverage.** For each requirement the posting states, decide: `matched` (the letter shows real evidence from the resume), `bridged` (the resume has adjacent experience the letter uses honestly), or `gap` (the candidate doesn't have it). Gaps are expected and fine — flag only when the letter *hides* a gap or implies coverage that isn't there.
 3. **Style.** The letter must read like plain English written by a person. Flag and fix, via edits:
    - **any em dash or en dash** (— or –). Replace with a full stop, comma, or colon, splitting the sentence where that reads better. This is not optional; the letter must contain none.

@@ -1,6 +1,6 @@
 # Stack
 
-> Part of job-hunter-agent/.project-knowledge/ | Last updated: 2026-08-16
+> Part of job-hunter-agent/.project-knowledge/ | Last updated: 2026-08-27
 
 ## Tech Stack
 
@@ -16,7 +16,7 @@
 | State Mgmt | Vanilla JS, in-memory (`allJobs` array in `ui/index.html`) |
 | Testing | pytest + httpx (FastAPI TestClient) |
 | Key Libraries | `firecrawl-py` (search + scrape), `exa-py` (fallback extraction), `python-dotenv`. Stdlib `csv` backs the application tracker |
-| AI | Claude Code CLI invoked as a subprocess (`claude -p ...`), not the Anthropic SDK |
+| AI | Any command-line AI tool, invoked as a subprocess. `LLM_CLI` / `LLM_ARGS` select it; defaults to `claude`. Not an SDK, and no provider library is imported |
 | Deployment | None — local dev tool, run via `python server.py` |
 
 ## Dev Commands
@@ -26,7 +26,7 @@
 | `python -m venv .venv && .venv/bin/pip install -r requirements.txt` | Install deps (needed on externally-managed Python distros, e.g. Arch — plain `pip install` fails there) |
 | `python server.py` | Start FastAPI dashboard at http://127.0.0.1:8000 |
 | `python agent.py` | Run the 5-step pipeline headless (no UI) |
-| `pytest` | Run `test_pipeline.py` + `test_server.py` — 84 tests, everything external mocked (Claude, Firecrawl, Exa, typst, pdftotext) |
+| `pytest` | Run `test_pipeline.py` + `test_server.py` — 84 tests, everything external mocked (the AI CLI, Firecrawl, Exa, typst, pdftotext) |
 | `typst compile templates/cv.typ` | Render the CV template standalone to check styling changes |
 
 ## Environment Variables
@@ -49,5 +49,5 @@ Scratch renders from the test-drive were in `/tmp/opencode/cv-demo/` (volatile);
 
 ## External Prerequisites (not env vars)
 
-- `claude` CLI must be installed and authenticated on PATH — `agent.py` shells out to it via `subprocess.run` in `run_claude()`. No Anthropic API key is used directly.
+- A command-line AI tool must be installed and authenticated on PATH. `agent.py` shells out to it via `subprocess.run` in `run_llm()`. `LLM_CLI` picks the binary (default `claude`) and `LLM_ARGS` templates its argv, with `{prompt}` replaced by the prompt text. No provider API key is used directly.
 - `resume.md` in project root — gitignored, user-supplied, required for the pipeline to run at all (`run_pipeline` raises `RuntimeError` if missing).

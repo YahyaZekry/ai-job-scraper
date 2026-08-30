@@ -3,6 +3,7 @@ import csv
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 from datetime import datetime
@@ -20,6 +21,24 @@ load_dotenv()
 THRESHOLD = 70
 RESUME_FILE = "resume.md"
 CONFIG_FILE = "config.json"
+
+# Which command-line AI tool runs the prompts in prompts/. Defaults to Claude
+# Code because that is what this was built against, but nothing here depends on
+# it: set LLM_CLI and LLM_ARGS to point at any CLI that takes a prompt and
+# prints a plain-text answer to stdout.
+#
+#   LLM_CLI=codex  LLM_ARGS="exec {prompt}"
+#   LLM_CLI=gemini LLM_ARGS="-p {prompt}"
+#
+# The model is never asked to open a file: Python inlines whatever a prompt
+# needs (see _attach), so no CLI needs file-access permissions.
+#
+# {prompt} is replaced with the full prompt text. Everything else is passed
+# through as written.
+LLM_CLI = os.environ.get("LLM_CLI", "claude")
+LLM_ARGS = os.environ.get(
+    "LLM_ARGS", "-p {prompt} --output-format text"
+)
 
 # Where to search. config.json (same shape) overrides these defaults, so the
 # job boards and subreddits can be tailored without editing code or prompts.
@@ -122,13 +141,13 @@ def _sources_context(cfg: dict) -> str:
 
 # ── step 0a: extract target roles + key skills from resume ─
 def analyze_resume() -> dict:
-    """Ask Claude for the candidate's target roles and key skills, so the UI
+    """Ask the model for the candidate's target roles and key skills, so the UI
     can offer them for selection before queries are built."""
-    return run_claude_json("prompts/analyze_resume.md")
+    return run_llm_json("prompts/analyze_resume.md", context=_attach(RESUME_FILE))
 
 # ── step 0b: build search queries for the selected roles ──
 def build_search_config(target_roles: list[str], key_skills: list[str], preferences: str = "") -> dict:
-    """Ask Claude to build search queries for the given roles/skills, folding
+    """Ask the model to build search queries for the given roles/skills, folding
     in optional free-text run preferences (location, pay, employment type)."""
     context = (
         f"\nSelected target roles: {', '.join(target_roles)}"
@@ -138,7 +157,7 @@ def build_search_config(target_roles: list[str], key_skills: list[str], preferen
         context += f"\nRun preferences: {preferences}\n"
     context += _sources_context(load_config())
 
-    config = run_claude_json("prompts/build_queries.md", context=context)
+    config = run_llm_json("prompts/build_queries.md", context=context)
     config["target_roles"] = target_roles
     config["key_skills"] = key_skills
     Path("output/search_config.json").write_text(json.dumps(config, indent=2))
@@ -355,44 +374,67 @@ def scrape_more() -> list[dict]:
     QUEUE_FILE.write_text(json.dumps(queue, indent=2))
     return _scrape_batch(batch)
 
-# ── claude runner ─────────────────────────────────────────
-def run_claude(prompt_file: str, context: str = "") -> str:
-    """Run a Claude prompt file and return the text result.
-    Read tool is allowed so Claude can read resume/jobs files.
-    Write tool is not allowed, forcing Claude to print output instead.
-    Optional context is appended to the prompt for inline data injection.
+# ── LLM runner ────────────────────────────────────────────
+def _attach(*paths: str) -> str:
+    """Inline the given files into a prompt, each under a ---NAME--- marker.
+
+    The prompts used to say "Read resume.md" and relied on the CLI granting the
+    model a file-read tool. That only ever worked with Claude Code; a plain
+    `codex exec` or `gemini -p` has no filesystem access and would invent the
+    contents instead. Passing the bytes ourselves works with any CLI, and means
+    the model needs no file access at all.
     """
-    prompt = Path(prompt_file).read_text(encoding="utf-8")
+    parts = []
+    for path in paths:
+        p = Path(path)
+        if not p.exists():
+            continue
+        label = p.name.split(".")[0].upper()
+        parts.append(f"\n\n---{label}---\n{p.read_text(encoding='utf-8')}")
+    return "".join(parts)
+
+def run_llm(prompt_file: str, context: str = "") -> str:
+    """Run a prompt file through the configured AI CLI and return its answer.
+
+    Optional context is appended to the prompt for inline data injection.
+
+    Python inlines every file a prompt needs and is the only thing that writes
+    to output/, so the model needs no filesystem access in either direction.
+    """
+    # Shared rules for every step, prepended here so they reach whichever CLI
+    # is configured. This used to be a CLAUDE.md in the project root, which
+    # only Claude Code ever read: other tools silently ran without it.
+    preamble = Path("prompts/_context.md")
+    prompt = (preamble.read_text(encoding="utf-8") + "\n\n---\n\n") if preamble.exists() else ""
+    prompt += Path(prompt_file).read_text(encoding="utf-8")
     if context:
         prompt = prompt + "\n" + context
-    # Resolve the executable so Windows finds the claude.cmd/claude.exe shim.
-    claude_exe = shutil.which("claude")
-    if not claude_exe:
+
+    # Resolve the executable so Windows finds a .cmd/.exe shim.
+    exe = shutil.which(LLM_CLI)
+    if not exe:
         raise RuntimeError(
-            "claude CLI not found on PATH — install Claude Code and make sure "
-            "`claude` runs from a terminal."
+            f"{LLM_CLI!r} not found on PATH. Install it, or point LLM_CLI at a "
+            "different command-line AI tool."
         )
+    args = [a.replace("{prompt}", prompt) for a in shlex.split(LLM_ARGS)]
     try:
         result = subprocess.run(
-            [claude_exe, "-p", prompt, "--output-format", "text", "--allowedTools", "Read"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            cwd=".",
+            [exe, *args], capture_output=True, text=True, encoding="utf-8", cwd=".",
         )
     except OSError as e:
         raise RuntimeError(
-            f"claude CLI found at {claude_exe} but failed to run ({e}). Its native binary may "
-            "be missing — try reinstalling Claude Code or running its postinstall script."
+            f"{LLM_CLI} found at {exe} but failed to run ({e}). Its native binary may "
+            "be missing, so try reinstalling it."
         )
     if result.returncode != 0:
-        print(f"Claude error: {result.stderr}")
-        raise RuntimeError("Claude subprocess failed")
+        print(f"{LLM_CLI} error: {result.stderr}")
+        raise RuntimeError(f"{LLM_CLI} exited with code {result.returncode}")
     return result.stdout.strip()
 
 def _parse_json_output(raw: str):
-    """Parse Claude's output as JSON, tolerating markdown fences and prose
-    around the JSON payload (Claude sometimes adds them despite instructions)."""
+    """Parse the model's output as JSON, tolerating markdown fences and prose
+    around the payload, which models add despite instructions."""
     if raw.startswith("```"):
         raw = re.sub(r"^```[a-zA-Z]*\s*\n", "", raw)
         raw = re.sub(r"\n```\s*$", "", raw)
@@ -411,24 +453,27 @@ def _parse_json_output(raw: str):
                 continue
     raise json.JSONDecodeError("no JSON value found in output", raw, 0)
 
-def run_claude_json(prompt_file: str, context: str = ""):
-    """Run a Claude prompt that must return JSON, and parse it."""
-    raw = run_claude(prompt_file, context)
+def run_llm_json(prompt_file: str, context: str = ""):
+    """Run a prompt that must return JSON, and parse it."""
+    raw = run_llm(prompt_file, context)
     if not raw:
-        raise RuntimeError(f"Claude returned empty output for {prompt_file}")
+        raise RuntimeError(f"{LLM_CLI} returned empty output for {prompt_file}")
     try:
         return _parse_json_output(raw)
     except json.JSONDecodeError as e:
-        raise RuntimeError(f"Claude returned invalid JSON for {prompt_file}: {e}\n---\n{raw[:300]}")
+        raise RuntimeError(f"{LLM_CLI} returned invalid JSON for {prompt_file}: {e}\n---\n{raw[:300]}")
 
-# ── step 2: analyze scraped jobs via Claude ───────────────
+# ── step 2: score the scraped jobs ────────────────────────
 def analyze_jobs(preferences: str = "") -> list[dict]:
-    """Run Claude analysis on raw_jobs.json and write output/jobs.json."""
+    """Score raw_jobs.json against the resume and write output/jobs.json."""
     today = datetime.now().strftime("%Y-%m-%d")
     context = f"Today's date is {today}."
     if preferences:
         context += f" Run preferences: {preferences}"
-    all_jobs = run_claude_json("prompts/analyze.md", context=context)
+    all_jobs = run_llm_json(
+        "prompts/analyze.md",
+        context=context + _attach(RESUME_FILE, "output/raw_jobs.json"),
+    )
     Path("output/jobs.json").write_text(json.dumps(all_jobs, indent=2))
     return all_jobs
 
@@ -519,9 +564,9 @@ def _verify_cv(pdf_path: Path, job: dict | None = None) -> list[str]:
     return warnings
 
 def _write_cv(job: dict, typ_path: Path, extra: str = "") -> Path:
-    """One CV: ask Claude for the Typst source, write it, compile it."""
+    """One CV: ask the model for the Typst source, write it, compile it."""
     context = json.dumps(job, indent=2) + extra
-    source = run_claude("prompts/cv.md", context=context)
+    source = run_llm("prompts/cv.md", context=context + _attach(RESUME_FILE, "templates/cv.typ"))
     if source.startswith("```"):
         source = re.sub(r"^```[a-zA-Z]*\s*\n", "", source)
         source = re.sub(r"\n```\s*$", "", source)
@@ -615,7 +660,7 @@ def _scraped_description(url: str) -> str:
 
     analyze.md's output shape drops `description`, so output/jobs.json — what
     the UI and the apply stage work from — has no posting text. Read it back
-    from the scrape rather than letting Claude recall what the posting said.
+    from the scrape rather than letting the model recall what the posting said.
     """
     raw = Path("output/raw_jobs.json")
     if not url or not raw.exists():
@@ -673,12 +718,13 @@ def apply_to_job(job: dict, on_progress=None) -> dict:
     )
 
     emit("Drafting")
-    draft = run_claude("prompts/apply_draft.md", context=job_json)
+    draft = run_llm("prompts/apply_draft.md", context=job_json + _attach(RESUME_FILE))
     (out_dir / "cover_letter_draft.md").write_text(draft, encoding="utf-8")
 
     emit("Reviewing")
-    review = run_claude_json(
-        "prompts/apply_review.md", context=f"{job_json}\n\n---DRAFT---\n{draft}"
+    review = run_llm_json(
+        "prompts/apply_review.md",
+        context=f"{job_json}{_attach(RESUME_FILE)}\n\n---DRAFT---\n{draft}",
     )
     (out_dir / "review.json").write_text(json.dumps(review, indent=2), encoding="utf-8")
 

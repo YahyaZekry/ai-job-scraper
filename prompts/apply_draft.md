@@ -1,4 +1,4 @@
-Read resume.md to understand the candidate's full profile — profession, skills, experience, and notable work.
+The candidate's resume is at the end of this prompt under ---RESUME---. Read it to understand the candidate's full profile — profession, skills, experience, and notable work.
 
 Below is a JSON object describing a specific job the candidate is applying to, including the posting's own text. Write the cover letter that goes with the application.
 

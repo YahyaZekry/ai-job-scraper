@@ -1,5 +1,5 @@
-Read resume.md to understand the candidate's full profile — profession, skills, experience, seniority, location, and preferences. The candidate can be in any profession; judge every job against what the resume actually shows.
-Then read output/raw_jobs.json.
+The candidate's resume is at the end of this prompt under ---RESUME---. Read it to understand the candidate's full profile — profession, skills, experience, seniority, location, and preferences. The candidate can be in any profession; judge every job against what the resume actually shows.
+The scraped postings follow under ---RAW_JOBS---.
 
 For each job, score it 0–100 based on how well it matches THIS specific candidate:
 

@@ -4,7 +4,7 @@
 
 Reads your resume, finds remote jobs worth applying to, and writes the application for you. Each match gets a CV rebuilt for that specific posting, and a cover letter whenever you ask for one.
 
-Then it checks its own work. A second Claude reads every letter with fresh context and removes anything it cannot find in your resume.
+Then it checks its own work. A second, independent pass reads every letter with fresh context and removes anything it cannot find in your resume.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/dashboard-dark.png">
@@ -36,15 +36,33 @@ Put your resume at `resume.md`. It is gitignored and never leaves your machine. 
 .venv/bin/python server.py    # → http://127.0.0.1:8000
 ```
 
-**You need:** Python 3.10+, the [`claude` CLI](https://claude.com/claude-code) signed in, and a [Firecrawl](https://firecrawl.dev) key.
+**You need:** Python 3.10+, a command-line AI tool signed in, and a [Firecrawl](https://firecrawl.dev) key. The default is [Claude Code](https://claude.com/claude-code); see below for using something else.
 
 **Optional:** [`typst`](https://github.com/typst/typst) for CVs, `pdftotext` from poppler for the ATS check, and an [Exa](https://exa.ai) key for pages Firecrawl cannot reach.
+
+## Using a different AI tool
+
+The pipeline shells out to a command-line AI tool. Claude Code is the default because that is what it was built against, but nothing depends on it. Two variables in `.env` point it at anything else:
+
+```bash
+LLM_CLI=codex
+LLM_ARGS=exec {prompt}
+```
+
+```bash
+LLM_CLI=gemini
+LLM_ARGS=-p {prompt}
+```
+
+`{prompt}` is replaced with the full prompt text. Everything else is passed through exactly as written, so any tool that takes a prompt and prints an answer to stdout will work.
+
+The model is never asked to open a file. Python inlines whatever each prompt needs, which means no tool needs filesystem permissions, and the shared rules in `prompts/_context.md` reach every provider identically.
 
 ## How a run works
 
 | Step | What happens |
 |------|--------------|
-| **0. Find roles** | Claude reads your resume and suggests target roles and key skills. You pick which ones this run covers. |
+| **0. Find roles** | The model reads your resume and suggests target roles and key skills. You pick which ones this run covers. |
 | **1. Build queries** | Your roles, skills and preferences become search queries, one per source. |
 | **2. Discover and scrape** | Firecrawl searches, then scrapes a batch of result pages into individual job postings. |
 | **3. Score** | Every posting is scored 0 to 100 against your profile: skills, seniority, remote signals, freshness, location, language and red flags. |
@@ -58,7 +76,7 @@ Cover letters are not written in bulk. You ask for one job at a time, and it get
 
 If a letter already exists for that job, it opens. If not, you get a short explanation and a **Write it** button.
 
-Claude drafts the letter from your resume. A second Claude then reads it, checks every claim against `resume.md`, and removes what it cannot find. You end up with the finished letter, a Copy button, and a collapsed section called "what was checked" holding:
+The model drafts the letter from your resume. A second, separate run then reads it, checks every claim against your resume, and removes what it cannot find. That second run never saw the first one happen, so it has no reason to defend the text. You end up with the finished letter, a Copy button, and a collapsed section called "what was checked" holding:
 
 - the claims that were removed, and why
 - what the job asked for against what you actually have, marked as *you have it*, *close enough, said honestly*, or *you do not have it*
@@ -135,7 +153,7 @@ Add your own if your field has dedicated boards. One thing to know: `job_boards`
 agent.py          # the whole pipeline plus the letter flow
 server.py         # FastAPI, server-sent events for progress
 ui/index.html     # single-file dashboard, no build step
-prompts/          # one Claude prompt per step
+prompts/          # _context.md is shared, then one prompt per step
 templates/cv.typ  # CV layout
 ```
 
@@ -150,7 +168,7 @@ templates/cv.typ  # CV layout
 
 ## Support
 
-Built while job hunting, and it runs on a Claude Code subscription plus Firecrawl's free tier for exactly that reason. If it saved you hours of scrolling or helped you land an interview:
+Built while job hunting, and it runs on an AI CLI subscription you already have plus Firecrawl's free tier for exactly that reason. If it saved you hours of scrolling or helped you land an interview:
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/YahyaZekry)
 

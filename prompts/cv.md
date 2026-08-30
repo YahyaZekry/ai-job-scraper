@@ -1,6 +1,6 @@
-Read resume.md to understand the candidate's full profile — profession, skills, experience, education, and contact details.
+The candidate's resume is at the end of this prompt under ---RESUME---. Read it to understand the candidate's full profile — profession, skills, experience, education, and contact details.
 
-Read templates/cv.typ. That file is a **styling reference only** — its sample content (Samir Haddad, a backend engineer) is not the candidate. Copy its preamble and layout conventions exactly; replace every piece of content with the real candidate's.
+The Typst template follows under ---CV---. It is a **styling reference only** — its sample content (Samir Haddad, a backend engineer) is not the candidate. Copy its preamble and layout conventions exactly; replace every piece of content with the real candidate's.
 
 Below is a JSON object describing a specific job. Write a Typst CV tailored to that job.
 

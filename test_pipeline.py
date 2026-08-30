@@ -128,7 +128,7 @@ def test_run_pipeline_works_without_callback(tmp_path, monkeypatch):
 def test_analyze_resume_extracts_roles_and_skills():
     import agent
     mock_result = {"target_roles": ["Frontend Developer"], "key_skills": ["React"]}
-    with patch.object(agent, "run_claude_json", return_value=mock_result) as mock_call:
+    with patch.object(agent, "run_llm_json", return_value=mock_result) as mock_call:
         result = agent.analyze_resume()
     assert result == mock_result
     assert mock_call.call_args[0][0] == "prompts/analyze_resume.md"
@@ -140,12 +140,12 @@ def test_build_search_config_passes_roles_skills_and_preferences(tmp_path, monke
     (tmp_path / "output").mkdir()
     captured = {}
 
-    def fake_run_claude_json(prompt_file, context=""):
+    def fake_run_llm_json(prompt_file, context=""):
         captured["prompt_file"] = prompt_file
         captured["context"] = context
         return {"search_queries": ["q1"]}
 
-    with patch.object(agent, "run_claude_json", side_effect=fake_run_claude_json):
+    with patch.object(agent, "run_llm_json", side_effect=fake_run_llm_json):
         config = agent.build_search_config(["Frontend Developer"], ["React"], "Egypt, USD, part-time")
 
     assert captured["prompt_file"] == "prompts/build_queries.md"
@@ -164,11 +164,11 @@ def test_build_search_config_omits_preferences_line_when_not_given(tmp_path, mon
     (tmp_path / "output").mkdir()
     captured = {}
 
-    def fake_run_claude_json(prompt_file, context=""):
+    def fake_run_llm_json(prompt_file, context=""):
         captured["context"] = context
         return {"search_queries": []}
 
-    with patch.object(agent, "run_claude_json", side_effect=fake_run_claude_json):
+    with patch.object(agent, "run_llm_json", side_effect=fake_run_llm_json):
         agent.build_search_config(["Frontend Developer"], ["React"])
 
     assert "Run preferences" not in captured["context"]
@@ -208,35 +208,35 @@ def test_run_pipeline_uses_given_resume_info_and_skips_analyze_resume(tmp_path, 
     assert captured == {"roles": ["Frontend Developer"], "skills": ["React"], "preferences": "Egypt, USD, part-time"}
 
 
-def test_run_claude_json_strips_markdown_fences():
+def test_run_llm_json_strips_markdown_fences():
     import agent
     fenced = '```json\n{"target_roles": ["Virtual Assistant"]}\n```'
-    with patch.object(agent, "run_claude", return_value=fenced):
-        assert agent.run_claude_json("prompts/x.md") == {"target_roles": ["Virtual Assistant"]}
+    with patch.object(agent, "run_llm", return_value=fenced):
+        assert agent.run_llm_json("prompts/x.md") == {"target_roles": ["Virtual Assistant"]}
 
 
-def test_run_claude_json_passes_plain_json_through():
+def test_run_llm_json_passes_plain_json_through():
     import agent
-    with patch.object(agent, "run_claude", return_value='[{"score": 88}]'):
-        assert agent.run_claude_json("prompts/x.md") == [{"score": 88}]
+    with patch.object(agent, "run_llm", return_value='[{"score": 88}]'):
+        assert agent.run_llm_json("prompts/x.md") == [{"score": 88}]
 
 
-def test_run_claude_json_extracts_json_from_surrounding_prose():
+def test_run_llm_json_extracts_json_from_surrounding_prose():
     import agent
     chatty = (
         "I don't have write permission for `output/jobs.json`. Per the task "
         'instructions, here is the raw JSON array:\n\n[{"title": "Support Rep", '
         '"score": 72}]\n\nLet me know if you need anything else.'
     )
-    with patch.object(agent, "run_claude", return_value=chatty):
-        assert agent.run_claude_json("prompts/x.md") == [{"title": "Support Rep", "score": 72}]
+    with patch.object(agent, "run_llm", return_value=chatty):
+        assert agent.run_llm_json("prompts/x.md") == [{"title": "Support Rep", "score": 72}]
 
 
-def test_run_claude_json_still_fails_loudly_on_no_json():
+def test_run_llm_json_still_fails_loudly_on_no_json():
     import agent
-    with patch.object(agent, "run_claude", return_value="Sorry, I cannot do that."):
+    with patch.object(agent, "run_llm", return_value="Sorry, I cannot do that."):
         with pytest.raises(RuntimeError, match="invalid JSON"):
-            agent.run_claude_json("prompts/x.md")
+            agent.run_llm_json("prompts/x.md")
 
 
 def test_load_config_returns_defaults_without_file(tmp_path, monkeypatch):
@@ -272,16 +272,16 @@ def test_sources_context_lists_boards_and_groups():
     assert "Gigs: r/freelance" in ctx
 
 
-def test_run_claude_raises_when_cli_missing(tmp_path, monkeypatch):
+def test_run_llm_raises_when_cli_missing(tmp_path, monkeypatch):
     import agent
     monkeypatch.chdir(tmp_path)
     (tmp_path / "prompt.md").write_text("hello")
     with patch.object(agent.shutil, "which", return_value=None):
-        with pytest.raises(RuntimeError, match="claude CLI not found"):
-            agent.run_claude("prompt.md")
+        with pytest.raises(RuntimeError, match="not found on PATH"):
+            agent.run_llm("prompt.md")
 
 
-def test_run_claude_raises_runtime_error_when_exec_fails(tmp_path, monkeypatch):
+def test_run_llm_raises_runtime_error_when_exec_fails(tmp_path, monkeypatch):
     import agent
     monkeypatch.chdir(tmp_path)
     (tmp_path / "prompt.md").write_text("hello")
@@ -292,17 +292,17 @@ def test_run_claude_raises_runtime_error_when_exec_fails(tmp_path, monkeypatch):
     with patch.object(agent.shutil, "which", return_value="/home/user/.npm-global/bin/claude"), \
          patch.object(agent.subprocess, "run", side_effect=_boom):
         with pytest.raises(RuntimeError, match="failed to run"):
-            agent.run_claude("prompt.md")
+            agent.run_llm("prompt.md")
 
 
-def test_run_claude_uses_resolved_executable(tmp_path, monkeypatch):
+def test_run_llm_uses_resolved_executable(tmp_path, monkeypatch):
     import agent
     monkeypatch.chdir(tmp_path)
     (tmp_path / "prompt.md").write_text("hello")
     fake_result = SimpleNamespace(returncode=0, stdout="ok\n", stderr="")
     with patch.object(agent.shutil, "which", return_value="/usr/local/bin/claude"), \
          patch.object(agent.subprocess, "run", return_value=fake_result) as mock_run:
-        out = agent.run_claude("prompt.md")
+        out = agent.run_llm("prompt.md")
     assert out == "ok"
     assert mock_run.call_args[0][0][0] == "/usr/local/bin/claude"
 
@@ -380,7 +380,7 @@ def test_analyze_jobs_writes_jobs_json(tmp_path, monkeypatch):
     (tmp_path / "output").mkdir()
 
     analyzed = [{"title": "Dev", "score": 85, "verdict": "apply"}]
-    with patch.object(agent, "run_claude", return_value=json.dumps(analyzed)):
+    with patch.object(agent, "run_llm", return_value=json.dumps(analyzed)):
         result = agent.analyze_jobs()
 
     assert result == analyzed
@@ -393,11 +393,11 @@ def test_analyze_jobs_includes_preferences_in_context(tmp_path, monkeypatch):
     (tmp_path / "output").mkdir()
     captured = {}
 
-    def fake_run_claude(prompt_file, context=""):
+    def fake_run_llm(prompt_file, context=""):
         captured["context"] = context
         return "[]"
 
-    with patch.object(agent, "run_claude", side_effect=fake_run_claude):
+    with patch.object(agent, "run_llm", side_effect=fake_run_llm):
         agent.analyze_jobs(preferences="Egypt, USD, part-time")
 
     assert "Egypt, USD, part-time" in captured["context"]
@@ -409,7 +409,7 @@ def test_generate_cvs_writes_source_and_compiles(tmp_path, monkeypatch):
     job = {"company": "Tech Co", "title": "Backend Engineer"}
 
     compiled = []
-    with patch.object(agent, "run_claude", return_value="#set page()\n= CV"), \
+    with patch.object(agent, "run_llm", return_value="#set page()\n= CV"), \
          patch.object(agent, "_compile_cv", side_effect=lambda p: compiled.append(p) or p), \
          patch.object(agent, "_verify_cv", return_value=[]):
         agent.generate_cvs([job])
@@ -423,7 +423,7 @@ def test_generate_cvs_strips_markdown_fences(tmp_path, monkeypatch):
     import agent
     monkeypatch.chdir(tmp_path)
 
-    with patch.object(agent, "run_claude", return_value="```typst\n#set page()\n```"), \
+    with patch.object(agent, "run_llm", return_value="```typst\n#set page()\n```"), \
          patch.object(agent, "_compile_cv"), patch.object(agent, "_verify_cv", return_value=[]):
         agent.generate_cvs([{"company": "Co", "title": "Dev"}])
 
@@ -434,7 +434,7 @@ def test_generate_cvs_survives_a_failing_job(tmp_path, monkeypatch, capsys):
     import agent
     monkeypatch.chdir(tmp_path)
 
-    with patch.object(agent, "run_claude", return_value="#set page()"), \
+    with patch.object(agent, "run_llm", return_value="#set page()"), \
          patch.object(agent, "_compile_cv", side_effect=RuntimeError("typst compile failed")), \
          patch.object(agent, "_verify_cv", return_value=[]):
         agent.generate_cvs([{"company": "Co", "title": "Dev"}])
@@ -517,8 +517,8 @@ def test_apply_to_job_writes_posting_draft_review_and_letter(tmp_path, monkeypat
     review = {"ungrounded_claims": [], "coverage": [],
               "edits": [{"old_string": "eight", "new_string": "5"}]}
 
-    with patch.object(agent, "run_claude", return_value="I have eight years of Python."), \
-         patch.object(agent, "run_claude_json", return_value=review):
+    with patch.object(agent, "run_llm", return_value="I have eight years of Python."), \
+         patch.object(agent, "run_llm_json", return_value=review):
         result = agent.apply_to_job(job)
 
     out = tmp_path / "output" / "applications" / "tech-co__backend-engineer"
@@ -535,8 +535,8 @@ def test_apply_to_job_reviews_the_exact_draft_it_wrote(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     captured = {}
 
-    with patch.object(agent, "run_claude", return_value="The drafted letter."), \
-         patch.object(agent, "run_claude_json",
+    with patch.object(agent, "run_llm", return_value="The drafted letter."), \
+         patch.object(agent, "run_llm_json",
                       side_effect=lambda f, context="": captured.update(context=context) or {"edits": []}):
         agent.apply_to_job({"company": "Co", "title": "Dev", "url": "u"})
 
@@ -548,8 +548,8 @@ def test_apply_to_job_emits_progress_labels(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     labels = []
 
-    with patch.object(agent, "run_claude", return_value="draft"), \
-         patch.object(agent, "run_claude_json", return_value={"edits": []}):
+    with patch.object(agent, "run_llm", return_value="draft"), \
+         patch.object(agent, "run_llm_json", return_value={"edits": []}):
         agent.apply_to_job({"company": "Co", "title": "Dev", "url": "u"}, on_progress=labels.append)
 
     assert labels == ["Drafting", "Reviewing", "Revising"]
@@ -642,12 +642,12 @@ def test_generate_cvs_retries_once_when_over_one_page(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     contexts = []
 
-    def fake_run_claude(prompt_file, context=""):
+    def fake_run_llm(prompt_file, context=""):
         contexts.append(context)
         return "#set page()"
 
     verdicts = iter([["CV is 2 pages — should be one"], []])
-    with patch.object(agent, "run_claude", side_effect=fake_run_claude), \
+    with patch.object(agent, "run_llm", side_effect=fake_run_llm), \
          patch.object(agent, "_compile_cv"), \
          patch.object(agent, "_verify_cv", side_effect=lambda p, j=None: next(verdicts)):
         agent.generate_cvs([{"company": "Co", "title": "Dev"}])
@@ -661,7 +661,7 @@ def test_generate_cvs_does_not_retry_a_clean_one_pager(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     calls = []
 
-    with patch.object(agent, "run_claude", side_effect=lambda f, context="": calls.append(1) or "#set page()"), \
+    with patch.object(agent, "run_llm", side_effect=lambda f, context="": calls.append(1) or "#set page()"), \
          patch.object(agent, "_compile_cv"), patch.object(agent, "_verify_cv", return_value=[]):
         agent.generate_cvs([{"company": "Co", "title": "Dev"}])
 
@@ -695,8 +695,8 @@ def test_apply_to_job_archives_the_scraped_posting_text(tmp_path, monkeypatch):
     (tmp_path / "output" / "raw_jobs.json").write_text(json.dumps(
         [{"url": "https://x/1", "description": "Verbatim posting text."}]))
 
-    with patch.object(agent, "run_claude", return_value="draft"), \
-         patch.object(agent, "run_claude_json", return_value={"edits": []}):
+    with patch.object(agent, "run_llm", return_value="draft"), \
+         patch.object(agent, "run_llm_json", return_value={"edits": []}):
         agent.apply_to_job({"company": "Co", "title": "Dev", "url": "https://x/1"})
 
     archived = (tmp_path / "output" / "applications" / "co__dev" / "job_posting.md").read_text()
@@ -841,7 +841,7 @@ def test_generate_cvs_skips_ones_already_compiled(tmp_path, monkeypatch):
     (tmp_path / "output" / "cvs").mkdir(parents=True)
     (tmp_path / "output" / "cvs" / "co__dev.pdf").write_bytes(b"%PDF")
 
-    with patch.object(agent, "run_claude") as claude:
+    with patch.object(agent, "run_llm") as claude:
         agent.generate_cvs([{"company": "Co", "title": "Dev"}])
 
     claude.assert_not_called()
@@ -852,11 +852,127 @@ def test_apply_to_job_strips_dashes_the_model_left_behind(tmp_path, monkeypatch)
     monkeypatch.chdir(tmp_path)
     draft = "I build agents — mostly in Python — and I ship them."
 
-    with patch.object(agent, "run_claude", return_value=draft), \
-         patch.object(agent, "run_claude_json", return_value={"edits": []}):
+    with patch.object(agent, "run_llm", return_value=draft), \
+         patch.object(agent, "run_llm_json", return_value={"edits": []}):
         result = agent.apply_to_job({"company": "Co", "title": "Dev", "url": "u"})
 
     assert "—" not in result["revised"]
     assert result["revised"] == "I build agents, mostly in Python, and I ship them."
     # the draft is kept verbatim so the modal can show what was changed
     assert "—" in result["draft"]
+
+
+def _fake_run(captured):
+    def run(argv, **kwargs):
+        captured["argv"] = argv
+        return SimpleNamespace(returncode=0, stdout="ok", stderr="")
+    return run
+
+
+def test_run_llm_substitutes_the_prompt_into_configured_args(tmp_path, monkeypatch):
+    import agent
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "prompt.md").write_text("PROMPT BODY")
+    monkeypatch.setattr(agent, "LLM_ARGS", "--flag {prompt} --after")
+    captured = {}
+
+    with patch.object(agent.shutil, "which", return_value="/bin/tool"), \
+         patch.object(agent.subprocess, "run", side_effect=_fake_run(captured)):
+        agent.run_llm("prompt.md")
+
+    # everything but {prompt} passes through untouched, in order
+    assert captured["argv"][0] == "/bin/tool"
+    assert captured["argv"][1] == "--flag"
+    assert "PROMPT BODY" in captured["argv"][2]
+    assert captured["argv"][3] == "--after"
+
+
+def test_run_llm_works_with_a_non_default_cli(tmp_path, monkeypatch):
+    import agent
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "prompt.md").write_text("hello")
+    monkeypatch.setattr(agent, "LLM_CLI", "codex")
+    monkeypatch.setattr(agent, "LLM_ARGS", "exec {prompt}")
+    captured = {}
+
+    with patch.object(agent.shutil, "which", return_value="/bin/codex") as which, \
+         patch.object(agent.subprocess, "run", side_effect=_fake_run(captured)):
+        assert agent.run_llm("prompt.md") == "ok"
+
+    which.assert_called_once_with("codex")
+    assert captured["argv"][:2] == ["/bin/codex", "exec"]
+
+
+def test_run_llm_names_the_configured_cli_when_it_is_missing(tmp_path, monkeypatch):
+    import agent
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "prompt.md").write_text("hello")
+    monkeypatch.setattr(agent, "LLM_CLI", "codex")
+
+    with patch.object(agent.shutil, "which", return_value=None):
+        with pytest.raises(RuntimeError, match="codex"):
+            agent.run_llm("prompt.md")
+
+
+def test_run_llm_prepends_the_shared_preamble(tmp_path, monkeypatch):
+    import agent
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "prompts").mkdir()
+    (tmp_path / "prompts" / "_context.md").write_text("SHARED RULES")
+    (tmp_path / "prompts" / "step.md").write_text("STEP BODY")
+    monkeypatch.setattr(agent, "LLM_ARGS", "{prompt}")
+    captured = {}
+
+    with patch.object(agent.shutil, "which", return_value="/bin/tool"), \
+         patch.object(agent.subprocess, "run", side_effect=_fake_run(captured)):
+        agent.run_llm("prompts/step.md")
+
+    sent = captured["argv"][1]
+    assert sent.index("SHARED RULES") < sent.index("STEP BODY")
+
+
+def test_run_llm_runs_fine_without_a_preamble(tmp_path, monkeypatch):
+    import agent
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "step.md").write_text("STEP BODY")
+    monkeypatch.setattr(agent, "LLM_ARGS", "{prompt}")
+    captured = {}
+
+    with patch.object(agent.shutil, "which", return_value="/bin/tool"), \
+         patch.object(agent.subprocess, "run", side_effect=_fake_run(captured)):
+        agent.run_llm("step.md")
+
+    assert captured["argv"][1].strip() == "STEP BODY"
+
+
+def test_attach_inlines_files_under_labelled_markers(tmp_path, monkeypatch):
+    import agent
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "resume.md").write_text("MY RESUME")
+    (tmp_path / "templates").mkdir()
+    (tmp_path / "templates" / "cv.typ").write_text("THE TEMPLATE")
+
+    out = agent._attach("resume.md", "templates/cv.typ")
+
+    assert "---RESUME---\nMY RESUME" in out
+    assert "---CV---\nTHE TEMPLATE" in out
+
+
+def test_attach_skips_files_that_do_not_exist(tmp_path, monkeypatch):
+    import agent
+    monkeypatch.chdir(tmp_path)
+    assert agent._attach("nope.md") == ""
+
+
+def test_analyze_resume_sends_the_resume_contents_not_a_filename(tmp_path, monkeypatch):
+    import agent
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "resume.md").write_text("SECRET RESUME TEXT")
+    captured = {}
+
+    with patch.object(agent, "run_llm_json",
+                      side_effect=lambda f, context="": captured.update(context=context) or {}):
+        agent.analyze_resume()
+
+    # the model can no longer be relied on to open files, so the bytes must travel
+    assert "SECRET RESUME TEXT" in captured["context"]

@@ -72,7 +72,7 @@ Written by `analyze_jobs()`, produced by `prompts/analyze.md`. Only jobs scored 
 
 `/api/jobs` adds a `status` field at read time (not persisted here) from `output/status.json`.
 
-**Note the missing `description`** — `prompts/analyze.md` doesn't carry the posting text through, so anything that needs the posting's own words (CV tailoring, the apply stage's coverage review, the archived `job_posting.md`) reads it back from `output/raw_jobs.json` via `_scraped_description(url)`, matched on canonical URL. Never let Claude recall what a posting said.
+**Note the missing `description`** — `prompts/analyze.md` doesn't carry the posting text through, so anything that needs the posting's own words (CV tailoring, the apply stage's coverage review, the archived `job_posting.md`) reads it back from `output/raw_jobs.json` via `_scraped_description(url)`, matched on canonical URL. Never let the model recall what a posting said.
 
 ## `output/status.json`
 
@@ -90,7 +90,7 @@ Pipeline step 4 used to bulk-write an unreviewed letter per job. Removed because
 
 ## `output/cvs/*.typ` + `*.pdf`
 
-One tailored CV per "apply"-verdict job, same `{slug(company)}__{slug(title)}` naming. The `.typ` is Claude's generated Typst source (whole document, not a filled template); the `.pdf` is what `typst compile` produced from it. `GET /api/cv` serves the PDF.
+One tailored CV per "apply"-verdict job, same `{slug(company)}__{slug(title)}` naming. The `.typ` is the model's generated Typst source (whole document, not a filled template); the `.pdf` is what `typst compile` produced from it. `GET /api/cv` serves the PDF.
 
 ## `output/applications.csv`
 

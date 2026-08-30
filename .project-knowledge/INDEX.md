@@ -2,11 +2,11 @@
 
 > Last updated: 2026-08-27
 > Status: Active
-> Stack: Python + FastAPI + Firecrawl + Exa (fallback) + Claude Code CLI (subprocess) + vanilla JS/Tailwind + Typst (CV rendering)
+> Stack: Python + FastAPI + Firecrawl + Exa (fallback) + any AI CLI (subprocess, default `claude`) + vanilla JS/Tailwind + Typst (CV rendering)
 > Current goal: Nothing blocking. The full pipeline and the letter flow have run end to end on real scraped postings, and the UI has been redesigned and audited. Open work is scrape quality plus making CV tailoring visible in the UI. See roadmap.md
 
 ## What This Project Does
-An autonomous, profession-agnostic job-hunting pipeline. It reads a user-supplied `resume.md`, derives search queries with Claude, discovers and scrapes remote job postings via Firecrawl, scores each against the resume, and builds a tailored Typst/PDF CV for every strong match. Cover letters are written one job at a time on demand, and a second Claude call checks each one for invented claims and requirement coverage before you ever see it. All reviewable in a local single-file web dashboard.
+An autonomous, profession-agnostic job-hunting pipeline. It reads a user-supplied `resume.md`, derives search queries with the model, discovers and scrapes remote job postings via Firecrawl, scores each against the resume, and builds a tailored Typst/PDF CV for every strong match. Cover letters are written one job at a time on demand, and a second, independent run checks each one for invented claims and requirement coverage before you ever see it. All reviewable in a local single-file web dashboard.
 
 ---
 

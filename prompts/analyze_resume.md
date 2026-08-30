@@ -1,4 +1,4 @@
-Read the file resume.md and extract a job search profile for the candidate. The candidate can be in any profession — developer, designer, virtual assistant, writer, accountant, marketer, etc. Derive everything from what the resume actually says.
+The candidate's resume is at the end of this prompt under ---RESUME---. Extract a job search profile from it. The candidate can be in any profession — developer, designer, virtual assistant, writer, accountant, marketer, etc. Derive everything from what the resume actually says.
 
 Output ONLY a valid JSON object — no markdown fences, no explanation, no extra text — in this exact shape:
 

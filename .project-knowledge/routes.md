@@ -11,7 +11,7 @@
 | `/api/cover-letter` | GET | No | Query params `company`, `title` → returns `{content, draft, review}` from `output/applications/<slug>/` — the finished letter plus the pre-review draft and the reviewer's JSON, so the UI can show what changed without re-running anything. 404 means no letter has been written for this job yet |
 | `/api/cv` | GET | No | Query params `company`, `title` → same slug lookup in `output/cvs/`, returns the compiled PDF as `application/pdf`; 404 if missing |
 | `/api/apply` | GET | No | Query param `url` → looks the job up in `output/jobs.json`, runs `apply_to_job()` on a background thread, streams SSE. Events: `{step: "Drafting"\|"Reviewing"\|"Revising"}`, then `{step: "complete", slug, draft, revised, review, skipped_edits}` or `{step: "error", message}`. 404 before any pipeline run or for an unknown URL. Not guarded by `run_lock` — it's per-job and independent of the pipeline |
-| `/api/resume-roles` | GET | No | Runs `analyze_resume()` synchronously (single Claude call), returns `{target_roles, key_skills}`. 400 if `resume.md` missing, 500 (with the real error message) if the `claude` CLI call fails. Powers the dashboard's "Find Roles" step |
+| `/api/resume-roles` | GET | No | Runs `analyze_resume()` synchronously (single model call), returns `{target_roles, key_skills}`. 400 if `resume.md` missing, 500 (with the real error message) if the AI CLI call fails. Powers the dashboard's "Find Roles" step |
 | `/api/run` | GET | No | Query params `roles` (repeated), `skills` (repeated), `preferences` (free text, optional) — all optional. Starts `run_pipeline(resume_info, preferences)` in a background thread (guarded by `run_lock`, one run at a time), streams progress as SSE. If `roles` is omitted, the pipeline auto-detects all roles via `analyze_resume()` (headless-compatible default). Returns `{step: "busy"}` immediately if already running. `find_more=true` skips the search and scrapes the next batch from `output/page_queue.json` instead — `roles`/`skills`/`preferences` are ignored in that mode |
 
 ## Pipeline steps (not HTTP routes, but the SSE step numbers `/api/run` reports)
@@ -26,8 +26,8 @@
 `GET /api/apply` → `apply_to_job(job)` in `agent.py`:
 
 1. Restores the posting text via `_scraped_description()` (see `schema.md`) and archives it to `output/applications/<slug>/job_posting.md`
-2. **Draft** — `prompts/apply_draft.md`, one `claude -p` call
+2. **Draft** — `prompts/apply_draft.md`, one model call
 3. **Review** — `prompts/apply_review.md`, a second call with fresh context, given the draft **inline** so it reviews exactly what was written. Returns ungrounded claims, requirement coverage, and structured edits
 4. **Revise** — `_apply_edits()` applies the reviewer's `{old_string, new_string}` pairs in Python. An edit that doesn't match verbatim, or matches more than once, is skipped and surfaced in `skipped_edits` rather than guessed at
 
-Two Claude calls, not three: the design sketched a third "revise" call, but the reviewer returns mechanical replacements, so Python applies them deterministically.
+Two model calls, not three: the design sketched a third "revise" call, but the reviewer returns mechanical replacements, so Python applies them deterministically.

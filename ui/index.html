@@ -279,9 +279,9 @@
           <div id="letter-empty" class="hidden text-center py-8">
             <p class="text-ink">No cover letter for this job yet.</p>
             <p class="text-sm text-muted mt-2 max-w-md mx-auto">
-              Claude will write one from your resume. A second Claude then reads it,
-              checks every claim against <code class="text-xs">resume.md</code>, and removes
-              anything it can't find there.
+              The model writes one from your resume. A second, separate run then reads
+              it back, checks every claim against <code class="text-xs">resume.md</code>,
+              and removes anything it can't find there.
             </p>
             <button id="letter-write-btn" onclick="writeLetter()"
               class="mt-5 bg-accent text-accent-ink hover:opacity-90 font-medium px-4 h-9 rounded-lg transition text-sm">
@@ -435,7 +435,7 @@
       return [...document.querySelectorAll(`#${containerId} input:checked`)].map(el => el.value);
     }
 
-    /* Reading the resume is a Claude subprocess call — several seconds and a
+    /* Reading the resume shells out to the AI CLI: several seconds and a
        real cost. Cache it so returning to setup is instant; `force` is the
        explicit re-read after editing resume.md. */
     async function openSetup() {
