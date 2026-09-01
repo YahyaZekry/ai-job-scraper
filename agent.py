@@ -297,6 +297,40 @@ def extract_postings(app: "FirecrawlApp", exa: "Exa | None", page: dict) -> list
 
     return _normalize_postings(raw_postings, listing_url, source) or _snippet_fallback()
 
+def _exclusion_hit(job: dict, terms: list[str]) -> str | None:
+    """The first excluded term found in a posting, or None to keep it.
+
+    Matched on whole words so excluding "java" doesn't also drop every
+    JavaScript role, and "on-site" doesn't match "onsite consulting" only
+    because one string happens to contain the other.
+    """
+    hay = f"{job.get('title', '')} {job.get('description', '')}".lower()
+    for term in terms:
+        term = term.strip().lower()
+        if term and re.search(rf"(?<!\w){re.escape(term)}(?!\w)", hay):
+            return term
+    return None
+
+def drop_excluded(jobs: list[dict], terms: list[str]) -> tuple[list[dict], dict[str, int]]:
+    """Filter postings before they reach the scorer.
+
+    Done in Python rather than left to the scoring prompt: it is deterministic,
+    it costs no tokens, and a term the user typed should be obeyed exactly
+    rather than interpreted. Returns the survivors plus a count per term so the
+    run can report what it threw away instead of silently shrinking.
+    """
+    if not terms:
+        return jobs, {}
+    kept: list[dict] = []
+    counts: dict[str, int] = {}
+    for job in jobs:
+        hit = _exclusion_hit(job, terms)
+        if hit:
+            counts[hit] = counts.get(hit, 0) + 1
+        else:
+            kept.append(job)
+    return kept, counts
+
 # ── step 1: search → scrape → individual postings ─────────
 QUEUE_FILE = Path("output/page_queue.json")
 
@@ -748,7 +782,7 @@ def apply_to_job(job: dict, on_progress=None) -> dict:
 
 # ── pipeline orchestrator ──────────────────────────────────
 def run_pipeline(on_progress=None, resume_info: dict | None = None, preferences: str = "",
-                 find_more: bool = False) -> dict:
+                 find_more: bool = False, exclude: list[str] | None = None) -> dict:
     """Run the full 4-step pipeline.
 
     find_more=True skips the search entirely and scrapes the next batch of
@@ -762,6 +796,10 @@ def run_pipeline(on_progress=None, resume_info: dict | None = None, preferences:
 
     preferences is optional free-text run preferences (location, pay,
     employment type) folded into both the search queries and the scoring.
+
+    exclude is a list of terms; any posting whose title or description contains
+    one as a whole word is dropped before scoring, so it costs no tokens and is
+    never talked round by the model.
 
     Calls on_progress(step, label, status) at each stage where:
       step   — int 1-4
@@ -802,6 +840,14 @@ def run_pipeline(on_progress=None, resume_info: dict | None = None, preferences:
         jobs = scrape_jobs(search_queries)
     if not jobs:
         raise RuntimeError("No jobs found — check your FIRECRAWL_API_KEY or search queries.")
+
+    jobs, excluded = drop_excluded(jobs, exclude or [])
+    if excluded:
+        summary = ", ".join(f"{t} ({n})" for t, n in sorted(excluded.items(), key=lambda kv: -kv[1]))
+        print(f"  Excluded {sum(excluded.values())} posting(s): {summary}")
+    if not jobs:
+        raise RuntimeError("Every posting matched an exclude term. Loosen the exclusions and try again.")
+
     raw_file.write_text(json.dumps(jobs, indent=2))
     emit(2, "Scraping jobs", "done")
 
@@ -821,7 +867,12 @@ def run_pipeline(on_progress=None, resume_info: dict | None = None, preferences:
         generate_cvs(apply_jobs)
     emit(4, "Generating CVs", "done")
 
-    return {"total": len(all_jobs), "above_threshold": len(good_jobs)}
+    return {
+        "total": len(all_jobs),
+        "above_threshold": len(good_jobs),
+        "excluded": sum(excluded.values()),
+        "excluded_terms": excluded,
+    }
 
 # ── main pipeline ─────────────────────────────────────────
 def run():

@@ -141,8 +141,43 @@
 
       <div class="p-5 space-y-5">
         <div>
-          <label class="block text-xs font-medium uppercase tracking-wider text-faint mb-2">Roles</label>
-          <div id="roles-list" class="flex flex-wrap gap-2"></div>
+          <div class="flex items-baseline justify-between gap-3 mb-2">
+            <label class="block text-xs font-medium uppercase tracking-wider text-faint">Roles</label>
+            <span class="text-xs text-faint">read from your resume, edit freely</span>
+          </div>
+          <div id="roles-list" class="flex flex-wrap gap-2 mb-2"></div>
+          <input id="roles-add" type="text" placeholder="Add a role and press Enter"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addTerm('roles',this)}"
+            class="bg-raised border border-line rounded-lg px-3 py-2 text-sm text-ink
+                   placeholder-faint w-full max-w-sm">
+        </div>
+
+        <div>
+          <div class="flex items-baseline justify-between gap-3 mb-2">
+            <label class="block text-xs font-medium uppercase tracking-wider text-faint">Skills to search on</label>
+            <span class="text-xs text-faint">uncheck anything you'd rather not be matched on</span>
+          </div>
+          <div id="skills-list" class="flex flex-wrap gap-2 mb-2"></div>
+          <input id="skills-add" type="text" placeholder="Add a skill and press Enter"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addTerm('skills',this)}"
+            class="bg-raised border border-line rounded-lg px-3 py-2 text-sm text-ink
+                   placeholder-faint w-full max-w-sm">
+        </div>
+
+        <div>
+          <div class="flex items-baseline justify-between gap-3 mb-2">
+            <label class="block text-xs font-medium uppercase tracking-wider text-faint">Exclude</label>
+            <span class="text-xs text-faint">drop any posting that mentions these</span>
+          </div>
+          <div id="exclude-list" class="flex flex-wrap gap-2 mb-2"></div>
+          <input id="exclude-add" type="text" placeholder="e.g. unpaid, on-site, PHP — press Enter"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addTerm('exclude',this)}"
+            class="bg-raised border border-line rounded-lg px-3 py-2 text-sm text-ink
+                   placeholder-faint w-full max-w-sm">
+          <p class="text-xs text-faint mt-2">
+            Matched as whole words against the title and description, before anything is scored.
+            Excluding "java" will not drop JavaScript roles.
+          </p>
         </div>
 
         <div>
@@ -426,6 +461,63 @@
       </label>`;
     }
 
+    /* Roles, skills and exclusions are user-editable lists, not fixed options,
+       so each chip carries a remove button. Additions and removals persist in
+       localStorage, which means re-reading the resume does not silently undo
+       the edits made here. */
+    function editableChip(list, value, checked) {
+      return `<span class="inline-flex items-center gap-2 bg-raised border border-line rounded-lg
+                           pl-3 pr-1.5 py-1.5 text-sm">
+        ${list === 'exclude' ? '' : `<input type="checkbox" value="${esc(value)}" ${checked ? 'checked' : ''} class="accent-accent">`}
+        <span>${esc(value)}</span>
+        <button type="button" onclick="removeTerm('${list}', ${JSON.stringify(value).replace(/"/g, '&quot;')})"
+          aria-label="Remove ${esc(value)}"
+          class="w-5 h-5 grid place-items-center rounded text-faint hover:text-danger hover:bg-danger/10">&times;</button>
+      </span>`;
+    }
+
+    const TERMS = { roles: [], skills: [], exclude: [] };
+
+    function renderTerms(list) {
+      const off = new Set(JSON.parse(localStorage.getItem(`off_${list}`) || '[]'));
+      document.getElementById(`${list}-list`).innerHTML =
+        TERMS[list].length
+          ? TERMS[list].map(v => editableChip(list, v, !off.has(v))).join('')
+          : `<span class="text-sm text-faint">${list === 'exclude' ? 'Nothing excluded.' : 'None yet.'}</span>`;
+    }
+
+    function addTerm(list, input) {
+      const value = input.value.trim();
+      if (!value || TERMS[list].some(v => v.toLowerCase() === value.toLowerCase())) { input.value = ''; return; }
+      TERMS[list].push(value);
+      input.value = '';
+      persistTerms(list);
+      renderTerms(list);
+    }
+
+    function removeTerm(list, value) {
+      TERMS[list] = TERMS[list].filter(v => v !== value);
+      persistTerms(list);
+      renderTerms(list);
+    }
+
+    function persistTerms(list) {
+      // Only the user's own additions are stored for roles/skills; the rest come
+      // from the resume each time it is read. Exclusions are entirely the user's.
+      if (list === 'exclude') {
+        localStorage.setItem('exclude', JSON.stringify(TERMS.exclude));
+        return;
+      }
+      const fromResume = new Set(list === 'roles' ? resumeInfo?.target_roles ?? [] : resumeInfo?.key_skills ?? []);
+      localStorage.setItem(`extra_${list}`, JSON.stringify(TERMS[list].filter(v => !fromResume.has(v))));
+      localStorage.setItem(`removed_${list}`, JSON.stringify([...fromResume].filter(v => !TERMS[list].includes(v))));
+    }
+
+    function checkedTerms(list) {
+      if (list === 'exclude') return [...TERMS.exclude];
+      return [...document.querySelectorAll(`#${list}-list input:checked`)].map(el => el.value);
+    }
+
     function renderChips(containerId, options, selected) {
       document.getElementById(containerId).innerHTML =
         options.map(opt => chip(opt, selected.includes(opt))).join('');
@@ -488,8 +580,17 @@
     }
 
     function renderSetup() {
-      document.getElementById('roles-list').innerHTML =
-        resumeInfo.target_roles.map(role => chip(role, true)).join('');
+      // Resume-derived terms, minus what the user removed, plus what they added.
+      // Re-reading the resume must not silently undo edits made here.
+      const load = key => JSON.parse(localStorage.getItem(key) || '[]');
+      for (const [list, fromResume] of [['roles', resumeInfo.target_roles ?? []],
+                                        ['skills', resumeInfo.key_skills ?? []]]) {
+        const removed = new Set(load(`removed_${list}`));
+        TERMS[list] = [...fromResume.filter(v => !removed.has(v)), ...load(`extra_${list}`)];
+        renderTerms(list);
+      }
+      TERMS.exclude = load('exclude');
+      renderTerms('exclude');
 
       renderChips('employment-list', EMPLOYMENT_OPTIONS, JSON.parse(localStorage.getItem('prefEmployment') || '[]'));
       renderChips('currency-list', CURRENCY_OPTIONS, JSON.parse(localStorage.getItem('prefCurrency') || '[]'));
@@ -537,11 +638,11 @@
     }
 
     function startSearch() {
-      const selectedRoles = [...document.querySelectorAll('#roles-list input:checked')].map(el => el.value);
-      if (!selectedRoles.length) { showError('Select at least one role to search for.'); return; }
+      const roles = checkedTerms('roles');
+      if (!roles.length) { showError('Select at least one role to search for.'); return; }
       const preferences = buildPreferences();
       document.getElementById('setup-section').classList.add('hidden');
-      runAgent(selectedRoles, resumeInfo.key_skills, preferences);
+      runAgent(roles, checkedTerms('skills'), preferences, false, checkedTerms('exclude'));
     }
 
     /* ── waiting game: dodge the red flags ─────────────────── */
@@ -643,10 +744,11 @@
     /* Scrape the next batch of pages the last search already found. No new
        search, and no page is scraped twice — see scrape_more() in agent.py. */
     function findMore() {
-      runAgent([], [], '', true);
+      // Exclusions still apply to a follow-up batch, so read them back from storage.
+      runAgent([], [], '', true, JSON.parse(localStorage.getItem('exclude') || '[]'));
     }
 
-    function runAgent(roles, skills, preferences, nextBatchOnly = false) {
+    function runAgent(roles, skills, preferences, nextBatchOnly = false, exclude = []) {
       const btn = document.getElementById('run-btn');
       const prog = document.getElementById('progress-section');
       const summary = document.getElementById('summary-banner');
@@ -665,6 +767,7 @@
       (skills || []).forEach(s => params.append('skills', s));
       if (preferences) params.set('preferences', preferences);
       if (nextBatchOnly) params.set('find_more', 'true');
+      exclude.forEach(t => params.append('exclude', t));
 
       const es = new EventSource(`/api/run?${params.toString()}`);
 
@@ -689,8 +792,13 @@
           const ts = new Date().toLocaleString();
           localStorage.setItem('lastRun', ts);
           document.getElementById('last-run').textContent = `Last run: ${ts}`;
+          // Say what the exclusions removed. A filter that quietly shrinks the
+          // results is indistinguishable from a bad search.
+          const terms = Object.entries(ev.excluded_terms ?? {})
+            .sort((a, b) => b[1] - a[1]).map(([t, n]) => `${t} (${n})`).join(', ');
           summary.textContent =
-            `Run complete — found ${ev.total} jobs, ${ev.above_threshold} above threshold (score ≥ 70)`;
+            `Run complete. ${ev.total} jobs scored, ${ev.above_threshold} above threshold (70+).`
+            + (ev.excluded ? ` ${ev.excluded} dropped by your exclude list: ${terms}.` : '');
           summary.classList.remove('hidden');
           loadJobs();
           return;

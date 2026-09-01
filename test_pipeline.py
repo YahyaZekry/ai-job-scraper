@@ -89,7 +89,8 @@ def test_run_pipeline_emits_all_step_events(tmp_path, monkeypatch):
     assert (3, "done") in step_statuses
     assert (4, "running") in step_statuses
     assert (4, "done") in step_statuses
-    assert result == {"total": 1, "above_threshold": 1}
+    assert result["total"] == 1 and result["above_threshold"] == 1
+    assert result["excluded"] == 0
 
 
 def test_run_pipeline_raises_when_resume_missing(tmp_path, monkeypatch):
@@ -976,3 +977,93 @@ def test_analyze_resume_sends_the_resume_contents_not_a_filename(tmp_path, monke
 
     # the model can no longer be relied on to open files, so the bytes must travel
     assert "SECRET RESUME TEXT" in captured["context"]
+
+
+def test_drop_excluded_matches_whole_words_only():
+    import agent
+    jobs = [
+        {"title": "Java Developer", "description": ""},
+        {"title": "Frontend Engineer", "description": "You will write JavaScript daily."},
+    ]
+
+    kept, counts = agent.drop_excluded(jobs, ["java"])
+
+    # "java" must not swallow "JavaScript"
+    assert [j["title"] for j in kept] == ["Frontend Engineer"]
+    assert counts == {"java": 1}
+
+
+def test_drop_excluded_handles_hyphenated_and_multiword_terms():
+    import agent
+    jobs = [
+        {"title": "Designer", "description": "This role is on-site in Berlin."},
+        {"title": "Analyst", "description": "Fully remote."},
+        {"title": "Intern", "description": "This is an unpaid internship."},
+    ]
+
+    kept, counts = agent.drop_excluded(jobs, ["on-site", "unpaid internship"])
+
+    assert [j["title"] for j in kept] == ["Analyst"]
+    assert counts == {"on-site": 1, "unpaid internship": 1}
+
+
+def test_drop_excluded_is_case_insensitive_and_counts_per_term():
+    import agent
+    jobs = [{"title": "PHP Dev", "description": ""}, {"title": "Senior php engineer", "description": ""},
+            {"title": "Python Dev", "description": ""}]
+
+    kept, counts = agent.drop_excluded(jobs, ["PHP"])
+
+    assert len(kept) == 1
+    assert counts == {"php": 2}
+
+
+def test_drop_excluded_without_terms_changes_nothing():
+    import agent
+    jobs = [{"title": "Anything", "description": "on-site unpaid php"}]
+    kept, counts = agent.drop_excluded(jobs, [])
+    assert kept == jobs and counts == {}
+
+
+def test_run_pipeline_filters_before_scoring_and_reports_what_it_dropped(tmp_path, monkeypatch):
+    import agent
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "resume.md").write_text("# Resume")
+    (tmp_path / "output").mkdir()
+
+    scraped = [
+        {"title": "Remote Python Dev", "company": "A", "url": "https://x/1", "description": "remote", "source": "x"},
+        {"title": "PHP Dev", "company": "B", "url": "https://x/2", "description": "php shop", "source": "x"},
+    ]
+    scored = {}
+
+    with patch.object(agent, "build_search_config", return_value={"search_queries": ["q"]}), \
+         patch.object(agent, "analyze_resume", return_value={"target_roles": [], "key_skills": []}), \
+         patch.object(agent, "scrape_jobs", return_value=scraped), \
+         patch.object(agent, "analyze_jobs", side_effect=lambda p="": scored.update(
+             seen=json.loads((tmp_path / "output" / "raw_jobs.json").read_text())) or []), \
+         patch.object(agent, "generate_cvs"):
+        result = agent.run_pipeline(exclude=["php"])
+
+    # the excluded posting never reaches the scorer, so it costs no tokens
+    assert [j["title"] for j in scored["seen"]] == ["Remote Python Dev"]
+    assert result["excluded"] == 1
+    assert result["excluded_terms"] == {"php": 1}
+
+
+def test_run_pipeline_says_so_when_exclusions_remove_everything(tmp_path, monkeypatch):
+    import agent
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "resume.md").write_text("# Resume")
+    (tmp_path / "output").mkdir()
+
+    with patch.object(agent, "build_search_config", return_value={"search_queries": ["q"]}), \
+         patch.object(agent, "analyze_resume", return_value={"target_roles": [], "key_skills": []}), \
+         patch.object(agent, "scrape_jobs",
+                      return_value=[{"title": "PHP Dev", "url": "https://x/1", "description": ""}]), \
+         patch.object(agent, "analyze_jobs") as scorer, \
+         patch.object(agent, "generate_cvs"):
+        with pytest.raises(RuntimeError, match="Loosen the exclusions"):
+            agent.run_pipeline(exclude=["php"])
+
+    scorer.assert_not_called()

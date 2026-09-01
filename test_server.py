@@ -114,7 +114,7 @@ def test_run_passes_roles_skills_and_preferences_to_pipeline(client, monkeypatch
     import agent
     captured = {}
 
-    def fake_run_pipeline(on_progress=None, resume_info=None, preferences="", find_more=False):
+    def fake_run_pipeline(on_progress=None, resume_info=None, preferences="", find_more=False, exclude=None):
         captured["resume_info"] = resume_info
         captured["preferences"] = preferences
         captured["find_more"] = find_more
@@ -135,7 +135,7 @@ def test_run_forwards_find_more_to_the_pipeline(client, monkeypatch):
     import agent
     captured = {}
 
-    def fake_run_pipeline(on_progress=None, resume_info=None, preferences="", find_more=False):
+    def fake_run_pipeline(on_progress=None, resume_info=None, preferences="", find_more=False, exclude=None):
         captured["find_more"] = find_more
         return {"total": 0, "above_threshold": 0}
 
@@ -145,11 +145,25 @@ def test_run_forwards_find_more_to_the_pipeline(client, monkeypatch):
     assert captured["find_more"] is True
 
 
+def test_run_forwards_exclude_terms_to_the_pipeline(client, monkeypatch):
+    import agent
+    captured = {}
+
+    def fake_run_pipeline(on_progress=None, resume_info=None, preferences="", find_more=False, exclude=None):
+        captured["exclude"] = exclude
+        return {"total": 0, "above_threshold": 0, "excluded": 0, "excluded_terms": {}}
+
+    monkeypatch.setattr(agent, "run_pipeline", fake_run_pipeline)
+    client.get("/api/run", params=[("exclude", "php"), ("exclude", "on-site")])
+
+    assert captured["exclude"] == ["php", "on-site"]
+
+
 def test_run_uses_auto_detected_roles_when_none_given(client, monkeypatch):
     import agent
     captured = {}
 
-    def fake_run_pipeline(on_progress=None, resume_info=None, preferences="", find_more=False):
+    def fake_run_pipeline(on_progress=None, resume_info=None, preferences="", find_more=False, exclude=None):
         captured["resume_info"] = resume_info
         return {"total": 0, "above_threshold": 0}
 

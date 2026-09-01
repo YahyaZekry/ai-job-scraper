@@ -113,7 +113,13 @@ Starts over: new queries, fresh discovery, fresh scraping. This replaces the que
 
 ## Preferences
 
-Before a search you can set employment type, pay and currency, and location. These feed into both the search queries and the scoring.
+Before a search you can edit everything the model pulled out of your resume, and add your own.
+
+**Roles and skills** arrive as chips read from `resume.md`. Uncheck one to leave it out of this run, click the × to delete it, or type your own and press Enter. Your edits are remembered, so re-reading the resume after you change it will not quietly undo them.
+
+**Exclude** drops any posting that mentions a term you list, before anything is scored. That means it costs no tokens and the model never gets a chance to talk itself round. Terms match as whole words against the title and description, so excluding "java" will not drop JavaScript roles, and "on-site" will not fire on "onsite". The run summary tells you how many postings each term removed, so a filter can never quietly shrink your results.
+
+Employment type, pay and currency, and location feed into both the search queries and the scoring.
 
 "Worldwide Remote" and a specific country are mutually exclusive, so they cannot combine into "worldwide or Egypt" and quietly widen your search. Note that typing a country searches *for* that country. There is no way to exclude one.
 
