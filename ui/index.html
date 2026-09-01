@@ -468,7 +468,8 @@
     function editableChip(list, value, checked) {
       return `<span class="inline-flex items-center gap-2 bg-raised border border-line rounded-lg
                            pl-3 pr-1.5 py-1.5 text-sm">
-        ${list === 'exclude' ? '' : `<input type="checkbox" value="${esc(value)}" ${checked ? 'checked' : ''} class="accent-accent">`}
+        ${list === 'exclude' ? '' : `<input type="checkbox" value="${esc(value)}" ${checked ? 'checked' : ''}
+            onchange="setTermEnabled('${list}', this.value, this.checked)" class="accent-accent">`}
         <span>${esc(value)}</span>
         <button type="button" onclick="removeTerm('${list}', ${JSON.stringify(value).replace(/"/g, '&quot;')})"
           aria-label="Remove ${esc(value)}"
@@ -493,6 +494,17 @@
       input.value = '';
       persistTerms(list);
       renderTerms(list);
+    }
+
+    /* Unchecking a chip means "skip this one", and that has to persist like
+       every other preference here. renderTerms already reads off_<list>;
+       without this nothing ever wrote it, so the box silently re-checked
+       itself on the next visit. */
+    function setTermEnabled(list, value, enabled) {
+      const key = `off_${list}`;
+      const off = new Set(JSON.parse(localStorage.getItem(key) || '[]'));
+      enabled ? off.delete(value) : off.add(value);
+      localStorage.setItem(key, JSON.stringify([...off]));
     }
 
     function removeTerm(list, value) {

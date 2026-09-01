@@ -1,7 +1,7 @@
 # Schema
 
 > Part of job-hunter-agent/.project-knowledge/ | Last updated: 2026-08-16
-> No database — all state lives in gitignored JSON files under `output/`. This is a navigable summary of their shapes.
+> No database. Runtime state lives in gitignored JSON files under `output/`; the dashboard keeps its own preferences in the browser's `localStorage`. This is a navigable summary of both.
 
 ## `output/search_config.json`
 
@@ -117,3 +117,31 @@ One directory per drafted application:
 | `cover_letter_draft.md` | The drafter's output, before review |
 | `review.json` | `{ungrounded_claims: [{claim, why}], coverage: [{requirement, status, note}], edits: [{old_string, new_string, reason}]}` — status is `matched \| bridged \| gap` |
 | `cover_letter.md` | The draft with the reviewer's edits applied — the one to send |
+
+## Browser `localStorage` (dashboard preferences)
+
+Written and read by `ui/index.html` only. Nothing server-side ever sees these, so clearing them loses preferences but no data.
+
+| Key | Shape | Notes |
+|-----|-------|-------|
+| `theme` | `"light" \| "dark"` | Absent means follow the system setting |
+| `viewMode` | `"list" \| "grid"` | Results layout |
+| `lastRun` | localised timestamp string | Shown under the page title |
+| `gameHighScore` | number | The waiting mini-game |
+| `prefEmployment`, `prefCurrency` | `string[]` | Chip selections |
+| `prefLocationText` | string | Free-text country |
+| `prefWorldwide`, `prefLocalCurrency` | `"true" \| "false"` | Stored as strings, compared with `=== 'true'` |
+| `exclude` | `string[]` | Exclude terms, entirely user-authored |
+| `extra_roles`, `extra_skills` | `string[]` | Terms the user **added** on top of the resume |
+| `removed_roles`, `removed_skills` | `string[]` | Resume-derived terms the user **deleted** |
+| `off_roles`, `off_skills` | `string[]` | Terms present but **unchecked**, so skipped this run |
+
+### Why roles and skills store a delta
+
+The resolved list is deliberately **not** stored. `renderSetup()` rebuilds it each time as
+`(resume terms − removed) + extra`, so re-reading `resume.md` still contributes newly
+found roles and skills while the user's own edits survive. Storing the final list instead
+would freeze the resume-derived half at whatever the first read produced.
+
+`off_*` is separate from `removed_*` on purpose: unchecking is "not this run", deleting is
+"never again". Both persist.

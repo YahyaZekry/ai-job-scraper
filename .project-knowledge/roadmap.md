@@ -22,6 +22,8 @@ All five pipeline stages plus the apply stage have now run end to end on real sc
 
 ## Active TODOs
 
+- [ ] Exclude terms and the editable role/skill lists are covered by unit tests and verified in the browser, but have not yet run against a live scrape. Worth watching the first real run's summary line to confirm the counts look sane and nothing over-filters. *(added: 2026-08-27)*
+
 - [ ] Nothing in the UI shows *what* was tailored in a CV. It opens as a PDF in a new tab with no before/after, so a user who knows their own resume can't tell selection and reordering happened at all — the first real reaction to the feature was "it printed my resume". A diff view, or a short "what changed for this job" note next to the button, would make the work visible the way the letter modal now does. *(added: 2026-08-26)*
 
 - [ ] LinkedIn still yields nothing usable — Firecrawl returns "Website Not Supported" and the Exa fallback then failed to parse on one of four attempts (`Expecting value: line 1 column 1`). Worth deciding whether to keep spending discovery slots on `linkedin.com/jobs` at all. *(found in the 2026-08-16 real run)*
